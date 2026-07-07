@@ -38,13 +38,9 @@ Ask: "Are you on **Claude Desktop / claude.ai** or **Claude Code** (the CLI)?"
 Run in your terminal, replacing `{tenant}` with your tenant name:
 
 ```bash
-claude mcp add abf-mcp --transport http https://abf-backend.{tenant}.cardoaiapps.com/mcp
+claude mcp add --transport http --scope user --client-id abf-mcp abf https://abf-backend.{tenant}.cardoaiapps.com/mcp
 ```
 
-**OAuth Client ID — required.** The ABF backend does not support Dynamic Client Registration, so the OAuth handshake fails without a pre-configured client ID. After running the command above, ensure the server entry's OAuth Client ID is set to `abf-mcp`:
+`--client-id abf-mcp` is **required** — the ABF backend does not support Dynamic Client Registration, so the OAuth handshake fails without it. `abf` is just the local name the connection is saved under (not the client ID). Your browser opens to sign in and authorize.
 
-1. Open Claude Code's MCP server settings (`/mcp` from inside Claude Code, or edit `~/.claude/settings.json` directly) and find the `abf-mcp` entry.
-2. Set the OAuth Client ID for that server to `abf-mcp`. If your version of Claude Code does not expose an OAuth Client ID field for HTTP MCP servers, fall back to the **Claude Desktop / claude.ai** flow above — the Desktop UI exposes the field and the resulting connection works identically.
-3. Run `/clear` or start a new conversation to load the connection.
-
-If you see an auth error or the OAuth flow loops, the client ID is the first thing to check.
+Run `/mcp` to confirm `abf` shows as connected. If you see an auth error or the OAuth flow loops, the client ID is the first thing to check.
