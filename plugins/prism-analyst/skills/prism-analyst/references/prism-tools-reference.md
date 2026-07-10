@@ -250,17 +250,16 @@ TABLE 1 - PERIOD COMPARISON (always include when comparison data exists):
 Flag symbols: >>> positive >15% | <<< negative >15% | ~ stable | ! concern | - no data
 
 TABLE 2 - CONFIDENCE & SOURCES (the score_answer band per metric, plus source traceability):
-| Data Point | Confidence | Source Type | Document | Page | chunk_uuid |
-| NAV ($m) | 🟢 high | TABLE | 2025 AR | p.62 | a1b2… |
-| FX impact | 🟡 medium | CHART | 2025 AR | p.26 | c3d4… |
-| Net Cash Flow | 🔴 low | CHART | Apr 2026 Pres | p.19 | e5f6… |
+| Data Point | Confidence | Source Type | Document | Page |
+| NAV ($m) | 🟢 high | TABLE | 2025 AR | p.62 |
+| FX impact | 🟡 medium | CHART | 2025 AR | p.26 |
+| Net Cash Flow | 🔴 low | CHART | Apr 2026 Pres | p.19 |
 
 Column definitions:
 - Confidence: the score_answer band - 🟢 `high` | 🟡 `medium` | 🔴 `low`. No percentages; set only by score_answer, never by source type or corroboration status.
 - Source Type: TABLE | TEXT | CHART | KPI (provenance only - does NOT set confidence)
 - Document: short form (e.g., "2025 AR", "Apr 2026 Pres")
 - Page: exact page reference
-- chunk_uuid: the source chunk the value was scored against
 
 Return: final answer with Period Comparison table, Confidence & Sources table,
 methodology notes, and caveats listing all `low`-scoring and ! flagged items.

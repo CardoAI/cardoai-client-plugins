@@ -195,20 +195,19 @@ Flag symbols: `>>>` significant positive (>15%) | `<<<` significant negative (>1
 
 **Confidence & Sources** - one `score_answer` groundedness band per metric, plus source traceability:
 
-| Data Point | Confidence | Source Type | Document | Page | chunk_uuid |
-|------------|------------|-------------|----------|------|------------|
-| NAV ($m) | 🟢 high | `TABLE` | 2025 Annual Report | p.62 | a1b2… |
-| FX impact | 🟡 medium | `CHART` | 2025 Annual Report | p.26 | c3d4… |
-| Net Cash Flow | 🔴 low | `CHART` | Apr 2026 Pres | p.19 | e5f6… |
+| Data Point | Confidence | Source Type | Document | Page |
+|------------|------------|-------------|----------|------|
+| NAV ($m) | 🟢 high | `TABLE` | 2025 Annual Report | p.62 |
+| FX impact | 🟡 medium | `CHART` | 2025 Annual Report | p.26 |
+| Net Cash Flow | 🔴 low | `CHART` | Apr 2026 Pres | p.19 |
 
 Column definitions:
 - **Confidence**: the `score_answer` band, shown as a circle - 🟢 `high` (value grounded in its chunk) | 🟡 `medium` (grounded but on a scanned/complex page) | 🔴 `low` (value not supported by its cited chunk). No percentages - the score is band-only. A verbatim, correctly-read chart value can score 🟢 `high`.
 - **Source Type**: `TABLE` | `TEXT` | `CHART` | `KPI` (provenance only - it does NOT set the confidence)
 - **Document**: Document name (use short form: "2025 AR", "Apr 2026 Pres", "Dec 2024 FS")
 - **Page**: Exact page for traceability
-- **chunk_uuid**: the source chunk the value was scored against
 
-**Overall Confidence: 🟢/🟡/🔴 `<lowest per-metric band>`** - the report is only as trustworthy as its weakest-grounded metric
+**Overall Confidence: 🟢/🟡/🔴 `<lowest per-metric band>`** - the report is only as trustworthy as its weakest-grounded metric. This line IS this answer's groundedness score (it already reflects `score_answer`) and satisfies the deal playbook's "end with `score:`" directive - so do NOT append a separate `score: high/medium/low` line at the end of the report.
 
 **Methodology** - which domain agents contributed, how sub-agent conflicts were resolved, chart corroboration results
 
