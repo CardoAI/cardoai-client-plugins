@@ -241,7 +241,7 @@ Every domain agent follows this when its sub-agents return conflicting data:
    c. Annual Report > Presentation > Factsheet
    d. If still tied, use value confirmed by more sub-agents
 5. **Log** the decision with rationale
-6. **Flag** unresolved conflicts as RED
+6. **Flag** unresolved conflicts in the state - an unresolved value has no cleanly-grounded source, so it will score `low`
 
 ## Chart/Image Data Rules
 
