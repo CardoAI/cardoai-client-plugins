@@ -249,7 +249,7 @@ Every domain agent follows this when its sub-agents return conflicting data:
 
 - Chart values must be verified before use: render the figure (`render_figure`) and/or corroborate against text/table before trusting a `[CHART/IMAGE]` value
 - Detection markers: `picture intentionally omitted`, `Start/End of picture text`
-- Confidence for every value (charts included) is set by `score_answer` - a verbatim, correctly-read chart value can score `high`
+- There is no per-value or per-source confidence - every value (charts included) feeds the single whole-answer `score_answer` band from Step 5, surfaced only when it is `low`
 
 ## General Rules
 
