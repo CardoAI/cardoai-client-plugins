@@ -154,11 +154,11 @@ before I generate the final report.
 
 For each item: confirm (Y), correct the value, or skip (S).
 
-| # | Metric | Extracted Value | Confidence | Source | Issue |
-|---|--------|----------------|------------|--------|-------|
-| 1 | FX impact | +$34m | 🔴 low | `[CHART/IMAGE]` 2025 AR, p.26 | value not clearly supported by its cited chunk |
-| 2 | Total value change | -$10m | 🔴 low | `[CHART/IMAGE]` 2025 AR, p.26 | does not reconcile; not grounded in a chunk |
-| 3 | Net Cash Flow | ($117m) | 🔴 low | `[CHART/IMAGE]` Apr 2026 Pres, p.19 | bar label attribution uncertain |
+| # | Metric | Extracted Value | Source | Issue |
+|---|--------|----------------|--------|-------|
+| 1 | FX impact | +$34m | `[CHART/IMAGE]` 2025 AR, p.26 | value not clearly supported by its cited chunk |
+| 2 | Total value change | -$10m | `[CHART/IMAGE]` 2025 AR, p.26 | does not reconcile; not grounded in a chunk |
+| 3 | Net Cash Flow | ($117m) | `[CHART/IMAGE]` Apr 2026 Pres, p.19 | bar label attribution uncertain |
 
 **For each row, reply with:**
 - `1: Y` to confirm the value is correct
