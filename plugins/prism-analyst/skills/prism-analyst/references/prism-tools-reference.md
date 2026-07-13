@@ -237,7 +237,7 @@ Perform these checks:
    - Mark metrics with no prior data as "-"
    - Produce a Period Comparison table:
      | Metric | Current (T) | Prior (T-1Y) | Delta | % Change | Flag |
-6. SCORE CONFIDENCE - this is the ONLY way confidence is set: for each data point call `score_answer(question="<the metric as a question>", answer="<the value statement>", chunk_uuids=[<its source chunk_uuid(s)>])` and record the returned band as a circle - 🟢 `high` | 🟡 `medium` | 🔴 `low`. Do NOT derive confidence from source type, corroboration status, or a percentage - a verbatim, correctly-read chart value can score 🟢 `high`.
+6. SCORE CONFIDENCE - call `score_answer(question="<the user's question>", answer="<the whole drafted answer>", chunk_uuids=[<every chunk the answer draws on>])` ONCE on the final answer (not per metric). That single band is the confidence. Surface it ONLY when it is `low`: print one line `Overall Confidence: 🔴 low - <reason>`; for `high`/`medium` print no confidence line at all.
 7. FLAG all `low`-scoring data points with exact PDF page numbers for manual verification.
 
 IMPORTANT: Produce TWO tables:
@@ -249,18 +249,17 @@ TABLE 1 - PERIOD COMPARISON (always include when comparison data exists):
 
 Flag symbols: >>> positive >15% | <<< negative >15% | ~ stable | ! concern | - no data
 
-TABLE 2 - CONFIDENCE & SOURCES (the score_answer band per metric, plus source traceability):
-| Data Point | Confidence | Source Type | Document | Page |
-| NAV ($m) | 🟢 high | TABLE | 2025 AR | p.62 |
-| FX impact | 🟡 medium | CHART | 2025 AR | p.26 |
-| Net Cash Flow | 🔴 low | CHART | Apr 2026 Pres | p.19 |
+TABLE 2 - SOURCES (source traceability per metric; no per-metric confidence shown):
+| Data Point | Source Type | Document | Page |
+| NAV ($m) | TABLE | 2025 AR | p.62 |
+| FX impact | CHART | 2025 AR | p.26 |
+| Net Cash Flow | CHART | Apr 2026 Pres | p.19 |
 
 Column definitions:
-- Confidence: the score_answer band - 🟢 `high` | 🟡 `medium` | 🔴 `low`. No percentages; set only by score_answer, never by source type or corroboration status.
-- Source Type: TABLE | TEXT | CHART | KPI (provenance only - does NOT set confidence)
+- Source Type: TABLE | TEXT | CHART | KPI
 - Document: short form (e.g., "2025 AR", "Apr 2026 Pres")
 - Page: exact page reference
 
-Return: final answer with Period Comparison table, Confidence & Sources table,
+Return: final answer with Period Comparison table, Sources table, the Overall Confidence line ONLY if the overall band is `low`,
 methodology notes, and caveats listing all `low`-scoring and ! flagged items.
 ```

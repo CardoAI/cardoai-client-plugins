@@ -1,6 +1,6 @@
 # Artifact Style Guide
 
-Default visual style for any rendered artifact this plugin produces - an inline HTML/React dashboard, an exported Word or PDF report, an Excel export, or a standalone chart image. Plain chat-markdown replies are out of scope here; those follow the Structured Response format in `SKILL.md` Step 6 as they already do - including its confidence scores, which stay in every output regardless of format.
+Default visual style for any rendered artifact this plugin produces - an inline HTML/React dashboard, an exported Word or PDF report, an Excel export, or a standalone chart image. Plain chat-markdown replies are out of scope here; those follow the Structured Response format in `SKILL.md` Step 6 as they already do - including its Overall Confidence line, which is surfaced only when the answer scores `low` (see Step 6).
 
 ## Document properties (exported documents)
 

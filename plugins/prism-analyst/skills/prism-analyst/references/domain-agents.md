@@ -208,7 +208,7 @@ Each domain agent is an Opus-level orchestrator that:
 3. Spawn gap-filler sub-agents (Haiku) for missing data
 4. Run chart/image corroboration for any [CHART/IMAGE] data
 5. Compute all period-over-period deltas and flags
-6. Score every metric's confidence by calling `score_answer(question, value, chunk_uuids)`; record the band as a circle (🟢 high / 🟡 medium / 🔴 low)
+6. Score the whole ANSWER once with `score_answer(question, answer, chunk_uuids)` (not per metric); that single band is the confidence, surfaced only when it is `low`
 7. Detect narrative vs. numbers inconsistencies
 8. Generate the final structured response
 
@@ -222,7 +222,8 @@ Each domain agent is an Opus-level orchestrator that:
 ### Output Format
 The Reporting Agent produces the final answer using the standard format:
 - Period Comparison table (with flags)
-- Confidence Assessment table (with sources)
+- Sources table (traceability only; no per-metric confidence)
+- Overall Confidence line - shown ONLY when the overall band is `low`; omitted for `high`/`medium`
 - Methodology
 - Caveats (all `low` and ! items)
 
