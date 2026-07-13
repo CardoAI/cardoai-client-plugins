@@ -90,7 +90,7 @@ Each domain agent's prompt must include:
 - Instructions to spawn 2-3 Haiku sub-agents internally, cross-validate, and return structured findings
 
 Each domain agent must return:
-- Verified metrics table (metric, T value, T-1Y value, source, `chunk_uuid`) - record the source `chunk_uuid` per metric; it is needed to score the metric with `score_answer` in Step 5
+- Verified metrics table (metric, T value, T-1Y value, source, `chunk_uuid`) - record the source `chunk_uuid` per metric; the answer's `score_answer` call in Step 5 needs every chunk the answer draws on
 - Sub-agent decision log (which sub-agent was selected per metric and why)
 - Gaps (metrics it couldn't find)
 - Red flags (anomalies detected)
@@ -139,12 +139,12 @@ Spawn ONE Reporting Agent with `model: "opus"`. Its prompt must include:
   2. Run chart/image corroboration (spawn corroboration Haiku sub-agents): for each flagged `[CHART/IMAGE]` data point, call `render_figure(chunk_uuid=<id>)` on its `chunk_uuid` (from the originating `search_deal_documents` result header) to check the actual chart pixels, in addition to text/table corroboration
   3. Audit GP narrative against verified numbers
   4. Compute all period-over-period deltas and flags
-  5. Score every metric's confidence by calling `score_answer` (it checks each value is grounded in its cited chunk): for each metric call `score_answer(question="<the metric as a question>", answer="<the value statement, e.g. 'The cost basis is $242.5M.'>", chunk_uuids=[<the metric's source chunk_uuid(s)>])` and record the returned band, shown as a circle: 🟢 `high` / 🟡 `medium` / 🔴 `low`
+  5. Score the FINAL ANSWER once (NOT per metric) by calling `score_answer(question="<the user's question>", answer="<your drafted answer>", chunk_uuids=[<every chunk_uuid the answer draws on>])`. The single returned band (`high` / `medium` / `low`) is the answer's overall confidence - it checks the whole answer is grounded in its cited chunks. Do not score metrics individually.
   6. Produce the final structured response
 
-### Step 5.5 - User Validation Gate (MANDATORY when any metric scores `low`)
+### Step 5.5 - User Validation Gate (MANDATORY when the answer scores `low`)
 
-Before generating any final report, the parent MUST check if any metric's `score_answer` band is `low` or has an `!` directional concern flag. If so, present ALL such items to the user for confirmation in this EXACT format:
+Before generating any final report, the parent MUST check if the answer's `score_answer` band is `low` or any value has an `!` directional concern flag. If so, present the specific ungrounded/uncertain data point(s) that dragged it down to the user for confirmation in this EXACT format:
 
 ```
 ## Data Validation Required
@@ -172,11 +172,11 @@ Example response: `1: Y, 2: -$15m, 3: S`
 **Rules for this gate:**
 - NEVER generate the final report until the user responds to this validation
 - NEVER skip this step when `low` items exist - it is mandatory
-- Include ALL metrics scoring `low` AND all `!` flagged items
+- Include the specific value(s) `score_answer` flagged as ungrounded AND all `!` flagged items
 - Group items logically (e.g., all waterfall chart items together)
 - Show enough context (source, page, issue) for the user to make a decision
 - If the user corrects a value, use the corrected value in the final report. There is no tool to persist the correction back to Prism for future queries - the correction applies to this session's report only.
-- If the user confirms, treat the metric as `medium` (user-validated)
+- If the user confirms, treat that value as user-validated and drop it from the low-confidence caveats
 - If the user skips, exclude the data point from the report and note it as "excluded by user"
 - After user responds, proceed to Step 6
 
@@ -193,21 +193,24 @@ Flag symbols: `>>>` significant positive (>15%) | `<<<` significant negative (>1
 
 **Answer** - clear, direct response with analysis and interpretation
 
-**Confidence & Sources** - one `score_answer` groundedness band per metric, plus source traceability:
+**Sources** - source traceability per metric (no per-metric confidence is shown):
 
-| Data Point | Confidence | Source Type | Document | Page |
-|------------|------------|-------------|----------|------|
-| NAV ($m) | 🟢 high | `TABLE` | 2025 Annual Report | p.62 |
-| FX impact | 🟡 medium | `CHART` | 2025 Annual Report | p.26 |
-| Net Cash Flow | 🔴 low | `CHART` | Apr 2026 Pres | p.19 |
+| Data Point | Source Type | Document | Page |
+|------------|-------------|----------|------|
+| NAV ($m) | `TABLE` | 2025 Annual Report | p.62 |
+| FX impact | `CHART` | 2025 Annual Report | p.26 |
+| Net Cash Flow | `CHART` | Apr 2026 Pres | p.19 |
 
 Column definitions:
-- **Confidence**: the `score_answer` band, shown as a circle - 🟢 `high` (value grounded in its chunk) | 🟡 `medium` (grounded but on a scanned/complex page) | 🔴 `low` (value not supported by its cited chunk). No percentages - the score is band-only. A verbatim, correctly-read chart value can score 🟢 `high`.
-- **Source Type**: `TABLE` | `TEXT` | `CHART` | `KPI` (provenance only - it does NOT set the confidence)
+- **Source Type**: `TABLE` | `TEXT` | `CHART` | `KPI`
 - **Document**: Document name (use short form: "2025 AR", "Apr 2026 Pres", "Dec 2024 FS")
 - **Page**: Exact page for traceability
 
-**Overall Confidence: 🟢/🟡/🔴 `<lowest per-metric band>`** - the report is only as trustworthy as its weakest-grounded metric. This line IS this answer's groundedness score (it already reflects `score_answer`) and satisfies the deal playbook's "end with `score:`" directive - so do NOT append a separate `score: high/medium/low` line at the end of the report.
+**Overall Confidence (surface ONLY when `low`):** the answer's confidence is the single `score_answer` band from Step 5 (scored on the whole answer, not per metric). Then:
+- `high` or `medium` -> show NOTHING: no confidence line, no `score:` line. Stay silent.
+- `low` -> and only then, print exactly one line - **`Overall Confidence: 🔴 low`** - <one-sentence reason> - and route the ungrounded value(s) through the Step 5.5 validation gate and the Caveats section.
+
+This conditional line is the only confidence ever surfaced, and it replaces the deal playbook's "end with `score:`" directive - never append a separate `score: high/medium/low` line.
 
 **Methodology** - which domain agents contributed, how sub-agent conflicts were resolved, chart corroboration results
 

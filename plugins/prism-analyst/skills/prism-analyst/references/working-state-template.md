@@ -31,8 +31,8 @@ This file is the template for the shared working state file created at the start
 **Agent:** Performance | **Wave:** 1 | **Status:** PENDING
 
 ### Verified Metrics
-| ID | Metric | T Value | T-1Y Value | Delta | % Chg | Source | Confidence | Flag |
-|----|--------|---------|------------|-------|-------|--------|------------|------|
+| ID | Metric | T Value | T-1Y Value | Delta | % Chg | Source | Flag |
+|----|--------|---------|------------|-------|-------|--------|------|
 
 ### Sub-Agent Decisions
 | Metric | Sub-A | Sub-B | Sub-C | Selected | Reason |
@@ -53,8 +53,8 @@ This file is the template for the shared working state file created at the start
 **Agent:** Cash Flow | **Wave:** 1 | **Status:** PENDING
 
 ### Verified Metrics
-| ID | Metric | T Value | T-1Y Value | Delta | % Chg | Source | Confidence | Flag |
-|----|--------|---------|------------|-------|-------|--------|------------|------|
+| ID | Metric | T Value | T-1Y Value | Delta | % Chg | Source | Flag |
+|----|--------|---------|------------|-------|-------|--------|------|
 
 ### Sub-Agent Decisions
 | Metric | Sub-A | Sub-B | Sub-C | Selected | Reason |
@@ -75,8 +75,8 @@ This file is the template for the shared working state file created at the start
 **Agent:** Composition | **Wave:** 1 | **Status:** PENDING
 
 ### Verified Metrics
-| ID | Metric | T Value | T-1Y Value | Delta | % Chg | Source | Confidence | Flag |
-|----|--------|---------|------------|-------|-------|--------|------------|------|
+| ID | Metric | T Value | T-1Y Value | Delta | % Chg | Source | Flag |
+|----|--------|---------|------------|-------|-------|--------|------|
 
 ### Sub-Agent Decisions
 | Metric | Sub-A | Sub-B | Sub-C | Selected | Reason |
@@ -102,8 +102,8 @@ This file is the template for the shared working state file created at the start
 - Composition: (populated after Wave 1)
 
 ### Verified Metrics
-| ID | Metric | T Value | T-1Y Value | Delta | % Chg | Source | Confidence | Flag |
-|----|--------|---------|------------|-------|-------|--------|------------|------|
+| ID | Metric | T Value | T-1Y Value | Delta | % Chg | Source | Flag |
+|----|--------|---------|------------|-------|-------|--------|------|
 
 ### Sub-Agent Decisions
 | Metric | Sub-A | Sub-B | Sub-C | Selected | Reason |
