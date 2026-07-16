@@ -124,9 +124,9 @@ CRITICAL: Tag EVERY data point with its source type:
 - [CHART/IMAGE] = from OCR of charts (look for "picture text" markers) - record its chunk_uuid for possible render_figure corroboration
 - [KPI_EXTRACTED] = from Prism KPI extraction layer
 
-Return: exact data found with source type tags FOR EACH PERIOD,
-source (document/page/section), and the `chunk_uuid` for every data point (needed later to score the value with `score_answer`), plus any discrepancies noticed.
-Do NOT self-assess a confidence score - confidence is set centrally by `score_answer` in the reporting step, and nowhere else.
+Return: exact data found with source type tags FOR EACH PERIOD, source (document/page/section),
+the `chunk_uuid` for every data point, and any discrepancies noticed.
+Do NOT self-assess confidence - `score_answer` sets it centrally in the reporting step.
 
 FORMAT YOUR RESULTS AS A COMPARISON:
 | Metric | T ({target_period}) | T-1Y ({year_ago_period}) | Source |
@@ -172,8 +172,8 @@ CRITICAL: Tag EVERY data point with its source type:
 - [KPI_EXTRACTED] = from Prism KPI extraction layer
 
 Return: exact data found with source type tags, source (document/page/section),
-and the `chunk_uuid` for every data point (needed later to score the value with `score_answer`), plus any discrepancies noticed.
-Do NOT self-assess a confidence score - confidence is set centrally by `score_answer` in the reporting step, and nowhere else.
+the `chunk_uuid` for every data point, and any discrepancies noticed.
+Do NOT self-assess confidence - `score_answer` sets it centrally in the reporting step.
 ```
 
 ### Chart/Image Corroboration Agent (Phase 2.5)
@@ -228,7 +228,7 @@ Perform these checks:
    - CORROBORATED -> use the text/table/render_figure-confirmed value; keep the corroborating chunk_uuid so score_answer can verify it
    - PARTIALLY_CORROBORATED -> use the text value and flag the discrepancy
    - UNCORROBORATED -> keep the chart value and cite the page for manual check
-   Do NOT assign any confidence here - every value's confidence is set only by score_answer in step 6.
+   Do NOT assign confidence here - step 6's score_answer sets it.
 5. PERIOD-OVER-PERIOD COMPARISON: For every metric with data at both T and T-1Y:
    - Compute absolute delta ($m, pp, or x multiple)
    - Compute percentage change (except for ratios - use delta)
@@ -237,7 +237,7 @@ Perform these checks:
    - Mark metrics with no prior data as "-"
    - Produce a Period Comparison table:
      | Metric | Current (T) | Prior (T-1Y) | Delta | % Change | Flag |
-6. SCORE CONFIDENCE - call `score_answer(question="<the user's question>", answer="<the whole drafted answer>", chunk_uuids=[<every chunk the answer draws on>])` ONCE on the final answer (not per metric). That single band is the confidence. Surface it ONLY when it is `low`: print one line `Overall Confidence: 🔴 low - <reason>`; for `high`/`medium` print no confidence line at all.
+6. SCORE CONFIDENCE - call `score_answer(question="<the user's question>", answer="<the whole drafted answer>", chunk_uuids=[<every chunk the answer draws on>])` ONCE on the final answer, never per metric. Surface the band ONLY when it is `low`: print one line `Overall Confidence: 🔴 low - <reason>`; for `high`/`medium` print no confidence line.
 7. FLAG all `low`-scoring data points with exact PDF page numbers for manual verification.
 
 IMPORTANT: Produce TWO tables:
