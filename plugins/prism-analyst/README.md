@@ -1,6 +1,6 @@
 # prism-analyst
 
-Ask questions about your Prism deals in plain language — NAV, cash flows, portfolio composition, risk metrics — and get answers with confidence scores and source citations down to the document and page.
+Ask questions about your Prism deals in plain language — NAV, cash flows, portfolio composition, risk metrics — and get answers with source citations down to the document and page.
 
 **Installation** (Claude Code or the Claude app): see the [main README](../../README.md).
 
@@ -16,15 +16,11 @@ The skill activates automatically when you mention a deal name, NAV, KPIs, portf
 
 ## How it works
 
-Behind each answer, several specialized agents retrieve and cross-check data independently (performance, cash flow, portfolio composition, risk), then a final agent reconciles their findings, applies a confidence score to every data point, and cites the source document and page.
+Behind each answer, several specialized agents retrieve and cross-check data independently (performance, cash flow, portfolio composition, risk), then a final agent reconciles their findings, cites the source document and page for every data point, and scores the finished answer against the sources it cites.
 
-| Score | Meaning |
-|---|---|
-| 🟢 | Reliable — from structured tables or audited statements. |
-| 🟡 | Use with caution — corroborated but not from a primary table. |
-| 🔴 | Verify manually — uncorroborated, often extracted from charts/images. |
+Every answer lists its sources, so you can trace any number back to a document and page. Chart and image data is treated with extra caution, since it comes from automated extraction rather than structured tables — the chart itself is re-rendered and checked against the surrounding text before the value is used.
 
-Chart/image data is treated with extra caution and never scored 🟢, since it comes from automated extraction rather than structured data. If any data point comes back low-confidence, you'll be asked to confirm or correct it before the final report is generated.
+Confidence is reported by exception: when the finished answer isn't well grounded in its sources, it's marked **🔴 low** and you'll be asked to confirm or correct the specific values in question before the final report is generated. No news is good news.
 
 ## Support
 

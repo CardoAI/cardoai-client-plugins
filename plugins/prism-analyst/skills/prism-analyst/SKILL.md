@@ -1,7 +1,7 @@
 ---
 name: prism-analyst
 description: This skill should be used when the user asks about a Prism deal or transaction, mentions a deal by name (e.g. "NBPE", "westlake", "volkswagen", "ftai"), asks about portfolio data, sector allocation, top companies, KPIs, NAV, financial metrics, or any question that requires querying the Prism MCP tools. It provides multi-agent verified retrieval with domain-specialized orchestrators, a shared working state, confidence scoring, and source references.
-version: 2.1.0
+version: 2.2.2
 ---
 
 # Prism Analyst - Domain-Orchestrated Multi-Agent Retrieval
@@ -90,7 +90,7 @@ Each domain agent's prompt must include:
 - Instructions to spawn 2-3 Haiku sub-agents internally, cross-validate, and return structured findings
 
 Each domain agent must return:
-- Verified metrics table (metric, T value, T-1Y value, source, `chunk_uuid`) - record the source `chunk_uuid` per metric; the answer's `score_answer` call in Step 5 needs every chunk the answer draws on
+- Verified metrics table (metric, T value, T-1Y value, source, `chunk_uuid`) - Step 5's `score_answer` call needs the `chunk_uuid` of every chunk the answer draws on
 - Sub-agent decision log (which sub-agent was selected per metric and why)
 - Gaps (metrics it couldn't find)
 - Red flags (anomalies detected)
@@ -139,8 +139,9 @@ Spawn ONE Reporting Agent with `model: "opus"`. Its prompt must include:
   2. Run chart/image corroboration (spawn corroboration Haiku sub-agents): for each flagged `[CHART/IMAGE]` data point, call `render_figure(chunk_uuid=<id>)` on its `chunk_uuid` (from the originating `search_deal_documents` result header) to check the actual chart pixels, in addition to text/table corroboration
   3. Audit GP narrative against verified numbers
   4. Compute all period-over-period deltas and flags
-  5. Score the FINAL ANSWER once (NOT per metric) by calling `score_answer(question="<the user's question>", answer="<your drafted answer>", chunk_uuids=[<every chunk_uuid the answer draws on>])`. The single returned band (`high` / `medium` / `low`) is the answer's overall confidence - it checks the whole answer is grounded in its cited chunks. Do not score metrics individually.
-  6. Produce the final structured response
+  5. Score the FINAL ANSWER once, never per metric: `score_answer(question="<the user's question>", answer="<your drafted answer>", chunk_uuids=[<every chunk_uuid the answer draws on>])`. The returned band (`high` / `medium` / `low`) is the answer's overall confidence - it checks the whole answer is grounded in its cited chunks
+  6. VERIFY before emitting: the Sources table is present and non-empty, and every data point in the answer has a row in it (see Step 6). Add any missing row; do not emit otherwise
+  7. Produce the final structured response
 
 ### Step 5.5 - User Validation Gate (MANDATORY when the answer scores `low`)
 
@@ -193,7 +194,7 @@ Flag symbols: `>>>` significant positive (>15%) | `<<<` significant negative (>1
 
 **Answer** - clear, direct response with analysis and interpretation
 
-**Sources** - source traceability per metric (no per-metric confidence is shown):
+**Sources** - MANDATORY on every answer, never inlined in prose: the provenance of EVERY data point the answer states, one row each - a single-value answer still gets a one-row table, a list gets one row per item. The value itself lives in the Answer; this table cites where each one came from. No per-metric confidence is shown.
 
 | Data Point | Source Type | Document | Page |
 |------------|-------------|----------|------|
@@ -206,11 +207,11 @@ Column definitions:
 - **Document**: Document name (use short form: "2025 AR", "Apr 2026 Pres", "Dec 2024 FS")
 - **Page**: Exact page for traceability
 
-**Overall Confidence (surface ONLY when `low`):** the answer's confidence is the single `score_answer` band from Step 5 (scored on the whole answer, not per metric). Then:
-- `high` or `medium` -> show NOTHING: no confidence line, no `score:` line. Stay silent.
-- `low` -> and only then, print exactly one line - **`Overall Confidence: 🔴 low`** - <one-sentence reason> - and route the ungrounded value(s) through the Step 5.5 validation gate and the Caveats section.
+**Overall Confidence** - the single `score_answer` band from Step 5, and the only confidence ever surfaced:
+- `high` or `medium` -> print no confidence line at all
+- `low` -> print exactly one line - **`Overall Confidence: 🔴 low`** - <one-sentence reason> - and route the ungrounded value(s) through the Step 5.5 validation gate and the Caveats section
 
-This conditional line is the only confidence ever surfaced, and it replaces the deal playbook's "end with `score:`" directive - never append a separate `score: high/medium/low` line.
+This supersedes the deal playbook's "end with `score:`" directive - never append a separate `score: high/medium/low` line.
 
 **Methodology** - which domain agents contributed, how sub-agent conflicts were resolved, chart corroboration results
 
@@ -249,7 +250,7 @@ Every domain agent follows this when its sub-agents return conflicting data:
 
 - Chart values must be verified before use: render the figure (`render_figure`) and/or corroborate against text/table before trusting a `[CHART/IMAGE]` value
 - Detection markers: `picture intentionally omitted`, `Start/End of picture text`
-- There is no per-value or per-source confidence - every value (charts included) feeds the single whole-answer `score_answer` band from Step 5, surfaced only when it is `low`
+- There is no per-value or per-source confidence - chart values, like all others, feed the single whole-answer `score_answer` band from Step 5
 
 ## General Rules
 
@@ -258,6 +259,8 @@ Every domain agent follows this when its sub-agents return conflicting data:
 - NEVER fabricate data - if not found, mark as PENDING/gap
 - NEVER generate the final report when `low`-scoring metrics exist without running Step 5.5 (User Validation Gate) first
 - ALWAYS include period comparison when comparison data exists
+- NEVER state a data point (number or named item) without citing it - it must have a row in the mandatory Sources table (see Step 6); never inline the source in prose
+- When asked to produce an artifact (dashboard, exported document, chart), ALWAYS apply `references/artifact-style.md` - read it first for the palette and layout; never emit an unstyled or off-brand artifact
 - Use hyphens with spaces instead of em-dashes (user preference)
 
 ## References
@@ -265,4 +268,4 @@ Every domain agent follows this when its sub-agents return conflicting data:
 - `references/domain-agents.md` - Full domain agent specifications, metrics, sub-agent strategies, red flag triggers
 - `references/working-state-template.md` - Working State file template and lifecycle
 - `references/prism-tools-reference.md` - Prism MCP tool signatures and parameters
-- `references/artifact-style.md` - colors, typography, page layout, and chart-type defaults for any rendered artifact (HTML dashboard, exported document, image). Consult whenever producing one.
+- `references/artifact-style.md` - colors, typography, page layout, and chart-type defaults for rendered artifacts (HTML dashboard, exported document, image).

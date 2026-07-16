@@ -208,7 +208,7 @@ Each domain agent is an Opus-level orchestrator that:
 3. Spawn gap-filler sub-agents (Haiku) for missing data
 4. Run chart/image corroboration for any [CHART/IMAGE] data
 5. Compute all period-over-period deltas and flags
-6. Score the whole ANSWER once with `score_answer(question, answer, chunk_uuids)` (not per metric); that single band is the confidence, surfaced only when it is `low`
+6. Score the whole ANSWER once with `score_answer(question, answer, chunk_uuids)`, never per metric
 7. Detect narrative vs. numbers inconsistencies
 8. Generate the final structured response
 
