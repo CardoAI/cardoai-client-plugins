@@ -194,16 +194,15 @@ Flag symbols: `>>>` significant positive (>15%) | `<<<` significant negative (>1
 
 **Answer** - clear, direct response with analysis and interpretation
 
-**Sources** - MANDATORY on every answer: the value and provenance of EVERY data point the answer states, one row each - a single-value answer gets a one-row table, a list gets one row per item. No per-metric confidence is shown.
+**Sources** - MANDATORY on every answer, never inlined in prose: the provenance of EVERY data point the answer states, one row each - a single-value answer still gets a one-row table, a list gets one row per item. The value itself lives in the Answer; this table cites where each one came from. No per-metric confidence is shown.
 
-| Data Point | Value | Source Type | Document | Page |
-|------------|-------|-------------|----------|------|
-| NAV ($m) | $1,209m | `TABLE` | 2025 Annual Report | p.62 |
-| FX impact | +$34m | `CHART` | 2025 Annual Report | p.26 |
-| Net Cash Flow | ($117m) | `CHART` | Apr 2026 Pres | p.19 |
+| Data Point | Source Type | Document | Page |
+|------------|-------------|----------|------|
+| NAV ($m) | `TABLE` | 2025 Annual Report | p.62 |
+| FX impact | `CHART` | 2025 Annual Report | p.26 |
+| Net Cash Flow | `CHART` | Apr 2026 Pres | p.19 |
 
 Column definitions:
-- **Value**: the number exactly as reported (e.g. "$1,209m", "5.4x", "+$34m", "41%"). For non-numeric list items, use a short label (e.g. "downgraded", "upgraded", "unchanged").
 - **Source Type**: `TABLE` | `TEXT` | `CHART` | `KPI`
 - **Document**: Document name (use short form: "2025 AR", "Apr 2026 Pres", "Dec 2024 FS")
 - **Page**: Exact page for traceability
@@ -260,7 +259,7 @@ Every domain agent follows this when its sub-agents return conflicting data:
 - NEVER fabricate data - if not found, mark as PENDING/gap
 - NEVER generate the final report when `low`-scoring metrics exist without running Step 5.5 (User Validation Gate) first
 - ALWAYS include period comparison when comparison data exists
-- NEVER state a data point (number or named item) only in prose - it must be a row in the mandatory Sources table (see Step 6)
+- NEVER state a data point (number or named item) without citing it - it must have a row in the mandatory Sources table (see Step 6); never inline the source in prose
 - When asked to produce an artifact (dashboard, exported document, chart), ALWAYS apply `references/artifact-style.md` - read it first for the palette and layout; never emit an unstyled or off-brand artifact
 - Use hyphens with spaces instead of em-dashes (user preference)
 
