@@ -1,7 +1,7 @@
 ---
 name: prism-analyst
-description: This skill should be used when the user asks about a Prism deal or transaction, mentions a deal by name (e.g. "NBPE", "westlake", "volkswagen", "ftai"), asks about portfolio data, sector allocation, top companies, KPIs, NAV, financial metrics, or any question that requires querying the Prism MCP tools. It provides multi-agent verified retrieval with domain-specialized orchestrators, a shared working state, confidence scoring, and source references.
-version: 2.2.2
+description: Use when the user asks about a Prism deal or transaction, mentions a deal by name (e.g. "NBPE", "westlake", "volkswagen", "ftai"), or asks about portfolio data, sector allocation, top companies, KPIs, NAV, or any financial metric that requires querying the Prism MCP tools.
+version: 3.0.0
 ---
 
 # Prism Analyst - Domain-Orchestrated Multi-Agent Retrieval
@@ -86,7 +86,9 @@ Each domain agent's prompt must include:
 - The deal context (transaction_id, periods, doc_types, entity aliases)
 - The comparison periods (T, T-1, T-1Y)
 - The user's question
-- Its domain specification (from `references/domain-agents.md`)
+- Its domain specification (from `references/domains/<domain>.md`)
+- This rule, verbatim: **"The metric table in your domain file is a catalog, not a checklist. Retrieve the metrics the question needs, plus any required to cross-validate them. Leave the rest unfetched."**
+- This rule, verbatim: **"Require a `chunk_uuid` from every sub-agent for every data point, and pass them through in your findings. Step 5's `score_answer` call needs the `chunk_uuid` of every chunk the answer draws on - a missing one cannot be recovered later."**
 - Instructions to spawn 2-3 Haiku sub-agents internally, cross-validate, and return structured findings
 
 Each domain agent must return:
@@ -130,60 +132,30 @@ Write Risk Agent findings to the Working State. Compile the complete Cross-Domai
 
 ### Step 5 - Wave 3: Reporting Agent
 
-Spawn ONE Reporting Agent with `model: "opus"`. Its prompt must include:
-- The complete Working State (all domain findings)
-- All chart/image data points needing corroboration
-- All narrative fragments for audit
-- Instructions to:
-  1. Fill any remaining PENDING metrics (spawn gap-filler Haiku sub-agents)
-  2. Run chart/image corroboration (spawn corroboration Haiku sub-agents): for each flagged `[CHART/IMAGE]` data point, call `render_figure(chunk_uuid=<id>)` on its `chunk_uuid` (from the originating `search_deal_documents` result header) to check the actual chart pixels, in addition to text/table corroboration
-  3. Audit GP narrative against verified numbers
-  4. Compute all period-over-period deltas and flags
-  5. Score the FINAL ANSWER once, never per metric: `score_answer(question="<the user's question>", answer="<your drafted answer>", chunk_uuids=[<every chunk_uuid the answer draws on>])`. The returned band (`high` / `medium` / `low`) is the answer's overall confidence - it checks the whole answer is grounded in its cited chunks
-  6. VERIFY before emitting: the Sources table is present and non-empty, and every data point in the answer has a row in it (see Step 6). Add any missing row; do not emit otherwise
-  7. Produce the final structured response
+Spawn ONE Reporting Agent with `model: "opus"`. The Reporting Agent ALWAYS runs, on every question, however narrowly scoped - it owns `score_answer`, the Sources table, and the pre-emit check, all of which are mandatory on every answer.
 
-### Step 5.5 - User Validation Gate (MANDATORY when the answer scores `low`)
+Its prompt must include the complete Working State, all chart/image data points needing corroboration, and all narrative fragments for audit.
 
-Before generating any final report, the parent MUST check if the answer's `score_answer` band is `low` or any value has an `!` directional concern flag. If so, present the specific ungrounded/uncertain data point(s) that dragged it down to the user for confirmation in this EXACT format:
+The Reporting Agent runs these steps in order. There are no branches:
 
-```
-## Data Validation Required
+1. Fill any remaining PENDING metrics (spawn gap-filler Haiku sub-agents)
+2. Corroborate every `[CHART/IMAGE]` data point per the Chart/Image Rules below
+3. Audit GP narrative against the verified numbers - this produces the `!` flags
+4. Compute all period-over-period deltas and flags
+5. Draft the answer
+6. Collect the ⚠ Flagged Data rows from the three signals listed in Step 6
+7. Score the FINAL ANSWER once, never per metric:
+   `score_answer(question="<the user's question>", answer="<your drafted answer>", chunk_uuids=[<every chunk_uuid the answer draws on>])`
+   Use only the returned `band` and `reason`. Ignore every other field.
+8. Write the Methodology block into the Working State's Report Draft section (never into the answer)
+9. Self-check before emitting: the Sources table is present and non-empty, and every value stated in the answer has a row in it. Add any missing row; do not emit otherwise
+10. Emit the structured response per Step 6
 
-The following data points have low confidence and need your confirmation
-before I generate the final report.
-
-For each item: confirm (Y), correct the value, or skip (S).
-
-| # | Metric | Extracted Value | Source | Issue |
-|---|--------|----------------|--------|-------|
-| 1 | FX impact | +$34m | `[CHART/IMAGE]` 2025 AR, p.26 | value not clearly supported by its cited chunk |
-| 2 | Total value change | -$10m | `[CHART/IMAGE]` 2025 AR, p.26 | does not reconcile; not grounded in a chunk |
-| 3 | Net Cash Flow | ($117m) | `[CHART/IMAGE]` Apr 2026 Pres, p.19 | bar label attribution uncertain |
-
-**For each row, reply with:**
-- `1: Y` to confirm the value is correct
-- `1: +$34m` to confirm with the same value
-- `1: -$34m` to correct the value
-- `1: S` to skip (exclude from report)
-
-Example response: `1: Y, 2: -$15m, 3: S`
-```
-
-**Rules for this gate:**
-- NEVER generate the final report until the user responds to this validation
-- NEVER skip this step when `low` items exist - it is mandatory
-- Include the specific value(s) `score_answer` flagged as ungrounded AND all `!` flagged items
-- Group items logically (e.g., all waterfall chart items together)
-- Show enough context (source, page, issue) for the user to make a decision
-- If the user corrects a value, use the corrected value in the final report. There is no tool to persist the correction back to Prism for future queries - the correction applies to this session's report only.
-- If the user confirms, treat that value as user-validated and drop it from the low-confidence caveats
-- If the user skips, exclude the data point from the report and note it as "excluded by user"
-- After user responds, proceed to Step 6
+Nothing blocks the report. A `low` band is reported, not adjudicated.
 
 ### Step 6 - Structured Response
 
-The Reporting Agent produces, and the parent presents (incorporating any user corrections from Step 5.5):
+The Reporting Agent produces, and the parent presents, exactly these sections in this order:
 
 **Period Comparison** table (always included when comparison data exists):
 
@@ -192,7 +164,7 @@ The Reporting Agent produces, and the parent presents (incorporating any user co
 
 Flag symbols: `>>>` significant positive (>15%) | `<<<` significant negative (>15%) | `~` stable | `!` directional concern (narrative vs. numbers) | `-` no prior data
 
-**Answer** - clear, direct response with analysis and interpretation
+**Answer** - clear, direct response with analysis and interpretation. A caveat that is not attached to a specific value belongs here, in the prose, where it is read - not in a footer.
 
 **Sources** - MANDATORY on every answer, never inlined in prose: the provenance of EVERY data point the answer states, one row each - a single-value answer still gets a one-row table, a list gets one row per item. The value itself lives in the Answer; this table cites where each one came from. No per-metric confidence is shown.
 
@@ -207,25 +179,43 @@ Column definitions:
 - **Document**: Document name (use short form: "2025 AR", "Apr 2026 Pres", "Dec 2024 FS")
 - **Page**: Exact page for traceability
 
+**⚠ Flagged Data** - include ONLY when at least one flagged item exists; omit the section entirely otherwise. Never ask the user to confirm, correct, or adjudicate these values - show them and move on.
+
+```
+## ⚠ Flagged Data
+These values could not be fully verified. Treat with caution.
+
+| Metric | Value | Source | Issue |
+|--------|-------|--------|-------|
+| FX impact | +$34m | `CHART` 2025 AR p.26 | uncorroborated; no independent TEXT/TABLE source |
+```
+
+Rows come from exactly three signals, and nowhere else:
+1. Unresolved sub-agent conflicts (Sub-Agent Decision Protocol, step 6)
+2. `UNCORROBORATED` or `PARTIALLY_CORROBORATED` chart values (Chart/Image Rules)
+3. `!` directional-concern flags
+
+`score_answer` CANNOT supply these rows - it returns one verdict for the whole answer and identifies no specific value.
+
 **Overall Confidence** - the single `score_answer` band from Step 5, and the only confidence ever surfaced:
 - `high` or `medium` -> print no confidence line at all
-- `low` -> print exactly one line - **`Overall Confidence: 🔴 low`** - <one-sentence reason> - and route the ungrounded value(s) through the Step 5.5 validation gate and the Caveats section
+- `low` -> print exactly one line: **`Overall Confidence: 🔴 low`** - `{reason}`
+
+`{reason}` is `score_answer`'s `reason` field, passed through **verbatim**. Do not paraphrase or invent it. If `reason` is null (which happens when `judge_ran` is false), use exactly: *"the answer is not sufficiently grounded in its cited chunks."*
 
 This supersedes the deal playbook's "end with `score:`" directive - never append a separate `score: high/medium/low` line.
 
-**Methodology** - which domain agents contributed, how sub-agent conflicts were resolved, chart corroboration results
-
-**Caveats** - all `low`-scoring and `!` flagged items with page references
+There is no Methodology section and no Caveats section in the answer. Methodology is written to the Working State (Step 5); value-specific caveats live in ⚠ Flagged Data; everything else lives in the Answer prose.
 
 ## Scoping Rules
 
-Not every question requires all five domain agents. The parent should scope based on the query:
+Not every question requires all Wave 1/Wave 2 domain agents. The parent scopes Wave 1 and Wave 2 based on the query. **The Reporting Agent (Wave 3) always runs regardless** - it owns `score_answer`, the Sources table, and the pre-emit check.
 
-| Query Type | Agents to Spawn |
-|------------|----------------|
+| Query Type | Wave 1 / Wave 2 agents to spawn |
+|------------|--------------------------------|
 | Specific metric (e.g., "what is the NAV?") | Relevant domain agent only (e.g., Performance) |
 | Company deep-dive (e.g., "Solenis performance") | Performance + Composition (Wave 1), then Risk (Wave 2) |
-| Full review / scan | All five agents (full protocol) |
+| Full review / scan | Performance + Cash Flow + Composition (Wave 1), then Risk (Wave 2) |
 | Risk question | Performance (Wave 1 for context) + Risk (Wave 2) |
 | Comparison question | Relevant domain(s) with emphasis on T-1Y retrieval |
 
@@ -237,35 +227,65 @@ Every domain agent follows this when its sub-agents return conflicting data:
 
 1. **Collect** all sub-agent values for the same metric
 2. **Compare** - do they agree?
-3. **If agree:** Use value from most authoritative source (TABLE > TEXT > KPI > CHART)
-4. **If disagree:** Apply tiebreakers:
-   a. Audited financial statements always win
-   b. TABLE > TEXT > KPI_EXTRACTED > CHART/IMAGE
-   c. Annual Report > Presentation > Factsheet
-   d. If still tied, use value confirmed by more sub-agents
+3. **If agree:** Use the value from the most authoritative source (see the hierarchy below)
+4. **If disagree:** Apply the Source Reliability Hierarchy, highest tier wins:
+
+   1. **Admin-approved feedback** (enrichment knowledge overrides) - always authoritative, never contradict it
+   2. **Annual Financial Reports** - audited, most comprehensive
+   3. **Investor Presentations** - detailed but unaudited
+   4. **Factsheets** - summary snapshots, may use different classification schemes
+   5. **Schedule of Investments** (within any doc) - named holdings with exact values
+   6. **Narrative sections** - contextual but may be approximate
+   7. **Chart/image extraction** - least reliable, subject to OCR errors
+
+   Within a tier, prefer `TABLE` > `TEXT` > `KPI` > `CHART`. If still tied, use the value confirmed by more sub-agents.
 5. **Log** the decision with rationale
 6. **Flag** unresolved conflicts in the state - an unresolved value has no cleanly-grounded source, so it will score `low`
 
-## Chart/Image Data Rules
+## Chart/Image Rules
 
-- Chart values must be verified before use: render the figure (`render_figure`) and/or corroborate against text/table before trusting a `[CHART/IMAGE]` value
-- Detection markers: `picture intentionally omitted`, `Start/End of picture text`
-- There is no per-value or per-source confidence - chart values, like all others, feed the single whole-answer `score_answer` band from Step 5
+A `[CHART/IMAGE]` value must be corroborated before the answer uses it. It clears on **at least one** of:
+
+- **(a)** `render_figure(chunk_uuid=<id>)` - a pixel-level check of bar heights, slice sizes, and axis labels against the extracted value, or
+- **(b)** an independent `TEXT` or `TABLE` source confirming the same value.
+
+Stop at the first success; you do not need both. Charts frequently publish data that exists nowhere else in the document, so requiring both would permanently flag every waterfall value and the flag would stop carrying information.
+
+Corroboration search order:
+
+1. `render_figure(chunk_uuid)` - check bar heights, slice sizes, axis labels
+2. Narrative text on the same or adjacent pages
+3. Footnotes and endnotes
+4. Tables in the same document
+5. The same metric in a different document type
+6. Audited financial statements
+
+Record one status per chart value:
+
+- **`CORROBORATED`** - exact value confirmed by `render_figure`, or found in an independent `TEXT` / `TABLE` source (cite it)
+- **`PARTIALLY_CORROBORATED`** - a related value was found, but it disagrees (note the discrepancy)
+- **`UNCORROBORATED`** - neither check landed
+
+`PARTIALLY_CORROBORATED` and `UNCORROBORATED` values are still used, but they MUST appear in the ⚠ Flagged Data table (Step 6).
+
+Detection markers for chart-sourced text: `picture intentionally omitted`, `Start/End of picture text`.
+
+There is no per-value or per-source confidence - chart values, like all others, feed the single whole-answer `score_answer` band from Step 5.
 
 ## General Rules
 
 - NEVER skip the Working State file - it's the backbone of cross-agent communication
-- NEVER contradict admin-approved feedback from the deal skill
 - NEVER fabricate data - if not found, mark as PENDING/gap
-- NEVER generate the final report when `low`-scoring metrics exist without running Step 5.5 (User Validation Gate) first
-- ALWAYS include period comparison when comparison data exists
 - NEVER state a data point (number or named item) without citing it - it must have a row in the mandatory Sources table (see Step 6); never inline the source in prose
+- NEVER ask the user to confirm, correct, or adjudicate a value. Flagged data is shown, not negotiated (see Step 6's ⚠ Flagged Data)
+- NEVER surface a confidence band other than the single whole-answer `score_answer` band, and only when it is `low`. There is no per-metric, per-value, or per-source confidence
+- ALWAYS include period comparison when comparison data exists
 - When asked to produce an artifact (dashboard, exported document, chart), ALWAYS apply `references/artifact-style.md` - read it first for the palette and layout; never emit an unstyled or off-brand artifact
 - Use hyphens with spaces instead of em-dashes (user preference)
 
 ## References
 
-- `references/domain-agents.md` - Full domain agent specifications, metrics, sub-agent strategies, red flag triggers
+- `references/domains/performance.md`, `cash-flow.md`, `composition.md`, `risk.md`, `reporting.md` - per-domain metric catalogs, sub-agent search strategies, cross-validation rules, red flag triggers. Each domain agent reads only its own file.
 - `references/working-state-template.md` - Working State file template and lifecycle
-- `references/prism-tools-reference.md` - Prism MCP tool signatures and parameters
+- `references/prism-tools-reference.md` - Prism MCP tool signatures, parameters, and common pitfalls
 - `references/artifact-style.md` - colors, typography, page layout, and chart-type defaults for rendered artifacts (HTML dashboard, exported document, image).
