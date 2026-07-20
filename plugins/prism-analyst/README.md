@@ -20,7 +20,7 @@ Behind each answer, several specialized agents retrieve and cross-check data ind
 
 Every answer lists its sources, so you can trace any number back to a document and page. Chart and image data is treated with extra caution, since it comes from automated extraction rather than structured tables — the chart itself is re-rendered and checked against the surrounding text before the value is used.
 
-Confidence is reported by exception: when the finished answer isn't well grounded in its sources, it's marked **🔴 low** and you'll be asked to confirm or correct the specific values in question before the final report is generated. No news is good news.
+Confidence is reported by exception: when the finished answer isn't well grounded in its sources, it's marked **🔴 low** with a one-line reason. No news is good news. Separately, any value the skill couldn't fully verify - a chart reading with no independent confirmation, or a figure two retrieval passes disagreed on - is listed in a **⚠ Flagged Data** table with its source and the specific issue, so you can judge it yourself. The report is never held up waiting for input.
 
 ## Support
 

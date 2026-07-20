@@ -1,5 +1,6 @@
 {
   "name": "cardoai-client-plugins",
+  "description": "CardoAI client plugins for Claude Code - Prism deal analytics and ABF transaction analysis.",
   "owner": {
     "name": "CardoAI",
     "email": "dev@cardoai.com"

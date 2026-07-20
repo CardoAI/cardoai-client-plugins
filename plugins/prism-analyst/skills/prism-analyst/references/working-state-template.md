@@ -147,7 +147,13 @@ This file is the template for the shared working state file created at the start
 ## Report Draft
 **Agent:** Reporting | **Wave:** 3 | **Status:** PENDING
 
-(Reporting Agent fills this section with the final synthesized output)
+### Methodology (internal - NEVER shown to the user)
+- Agents contributing: {e.g. Performance (W1), Risk (W2), Reporting (W3)}
+- Conflicts resolved: {metric - Sub-A value (source) vs Sub-C value (source) -> selected which, and why}
+- Chart corroboration: {n of m CORROBORATED, list any UNCORROBORATED}
+
+### Final Answer
+(Reporting Agent fills this with the Step 6 structured response - Period Comparison, Answer, Sources, ⚠ Flagged Data if any, Overall Confidence if low)
 ```
 
 ---
@@ -155,7 +161,7 @@ This file is the template for the shared working state file created at the start
 ## State File Lifecycle
 
 1. **CREATE**: Parent creates the state file from this template at session start
-2. **POPULATE CONTEXT**: Parent fills in Deal Context from Phase 1
+2. **POPULATE CONTEXT**: Parent fills in Deal Context from Step 1
 3. **WAVE 1**: Performance, Cash Flow, Composition agents run in parallel
    - Each agent reads the state (Deal Context section)
    - Each agent writes to its own domain section

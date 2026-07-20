@@ -11,8 +11,10 @@ list_deals() --> get_deal_skill(transaction_id)
                     v
             search_deal_documents(query, transaction_id, report_period, ...filters)
                     |
+                    +--> render_figure(chunk_uuid)   [only for figure/chart chunks]
+                    |
                     v
-            render_figure(chunk_uuid)   [only for figure/chart chunks]
+            score_answer(question, answer, chunk_uuids)   [once, on the final answer]
 ```
 
 ## Tool Signatures
@@ -61,17 +63,41 @@ list_deals() --> get_deal_skill(transaction_id)
 - **Returns**: An MCP image content block (cropped PNG of the figure) followed by filename/page/section metadata
 - **Purpose**: Pixel-level verification of chart data (bar heights, slice sizes, axis labels) that a figure's text transcription can approximate but not guarantee. Use this to corroborate `[CHART/IMAGE]` data points instead of relying on text alone - only `element_type="figure"` chunks render.
 
+### score_answer
+
+- **Parameters** (verified against the live server, Oxygen Prism v3.2.4):
+  - `question` (string, **required**) - the user's original question
+  - `answer` (string, **required**) - the whole drafted answer
+  - `chunk_uuids` (list of string, **required**) - every chunk the answer draws on
+  - `citations` (list of `{chunk_uuid, cited_text}`, optional, default `null`) - verbatim receipts. `cited_text` must be ONE contiguous, character-exact span copied from that chunk - no paraphrasing, no reformatted numbers, no stitched-together fragments.
+  - `stop_reason` (string, optional, default `null`) - answer-generation stop reason, e.g. `end_turn`. Usually omit.
+- **Returns**: an `AnswerConfidence` object:
+
+```python
+class AnswerConfidence(BaseModel):
+    band: ConfidenceBand          # 'high' | 'medium' | 'low'
+    reason: str | None            # one-line explanation of the verdict
+    answer_type: str | None       # 'substantive' | 'refusal'
+    evidence_sufficiency: str | None      # 'yes' / 'partial' / 'no'
+    contradicts_evidence: str | None      # 'yes' / 'no'
+    answer_overreaches: str | None        # 'yes' / 'no'
+    answer_addresses_question: str | None # 'yes' / 'partial' / 'no'
+    refusal_justified: str | None         # 'yes' / 'partial' / 'no' / 'n/a'
+    judge_ran: bool               # False if the deterministic gate was terminal
+    rubric_json: dict             # raw signals, telemetry only
+```
+
+- **Purpose**: Certify that a drafted answer is grounded in the chunks it cites. Called ONCE on the final answer, never per metric.
+- **CRITICAL - what it does NOT do:**
+  - It **certifies grounding in the SUPPLIED chunks, not global correctness.** A `high` band means "faithful to the chunks you chose to cite". An answer that cites only agreeable chunks can earn `high` while being wrong. Never present the band as a correctness guarantee.
+  - It **identifies no specific value.** There is no per-claim or per-chunk breakdown in the response. Do not attempt to source a "which value is ungrounded" list from it - the ⚠ Flagged Data table is built from the skill's own signals (see `SKILL.md` Step 6).
+  - When `judge_ran` is `False` the deterministic gate was terminal and **every sub-judgment field is null**. `reason` is `str | None` regardless, so any use of it needs a fallback.
+- **Usage in this skill**: only `band` and `reason` are read. All other fields are ignored by design - see `SKILL.md` Step 5, step 7.
+- **`citations` is not currently sent.** The skill passes only the three required parameters. The tool calls `citations` "strongly recommended": *"With verbatim `citations` the engine verifies each quote against its chunk (extraction-style receipts); without them it falls back to matching the whole answer."* Verified quotes let it *"certify grounding deterministically (and lift the page-complexity cap) instead of judging a prose answer."* This is also why `judge_ran` is effectively always true - omitting `citations` guarantees the LLM-judge fallback. Adopting `citations` would change the sub-agent contract (every sub-agent returning character-exact spans) and is deliberately deferred.
+
 ## Source Reliability Hierarchy
 
-When multiple sources provide conflicting data, prefer in this order:
-
-1. **Admin-approved feedback** (enrichment knowledge overrides) - always authoritative
-2. **Annual Financial Reports** - audited, most comprehensive
-3. **Investor Presentations** - detailed but unaudited
-4. **Factsheets** - summary snapshots, may use different classification schemes
-5. **Schedule of Investments** (within any doc) - named holdings with exact values
-6. **Narrative sections** - contextual but may be approximate
-7. **OCR from charts/pictures** - least reliable, subject to extraction errors
+Owned by `SKILL.md`'s Sub-Agent Decision Protocol (the 7-tier hierarchy). Not restated here.
 
 ## Common Pitfalls
 
@@ -81,7 +107,7 @@ When multiple sources provide conflicting data, prefer in this order:
 - "As of" dates in presentations often differ from the reporting period (e.g., April 2024 presentation shows March 31, 2024 data)
 - Enrichment KPIs extracted by Haiku may occasionally misparse complex table layouts
 - Entity aliases are important - always check `get_deal_skill` for canonical names
-- There is no tool to persist a user's correction back to Prism - a Step 5.5 correction applies to the current session's report only
+- There is no tool to persist data back to Prism - values are read-only within a session
 
 ## Agent Prompt Templates
 
