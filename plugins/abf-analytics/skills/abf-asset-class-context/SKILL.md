@@ -4,7 +4,7 @@ description: >
   Use when an ABF transaction's asset class is known and you need its KPI catalog, entity model,
   applicability profile, or enum vocabulary. Triggers when list_transactions reveals a transaction's
   asset_class, when an analyst names an asset class (auto loans, credit cards, CRE hospitality, trade
-  finance, cell tower, etc.), or asks "what KPIs / stratifications / dimensions apply to X". The
+  finance, cell tower, etc.), or asks "what KPIs / tables / dimensions apply to X". The
   knowledge is served by the ABF MCP server as resources; this skill is the protocol for resolving
   the asset_class string against the server's index and loading only the sections the question needs.
 ---
@@ -22,7 +22,7 @@ never mix one environment's catalog with another environment's data.
 
 Load on ANY of:
 - An ABF transaction is identified and its `asset_class` is known (from `list_transactions`).
-- The analyst names an asset class ("auto loans report", "hospitality stratifications").
+- The analyst names an asset class ("auto loans report", "hospitality tables").
 - The analyst asks "what KPIs / metrics / dimensions / data apply to {asset_class}".
 - The `abf-report-runner` requests catalog injection.
 

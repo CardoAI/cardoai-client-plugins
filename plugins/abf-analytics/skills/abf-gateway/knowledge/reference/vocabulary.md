@@ -4,29 +4,29 @@ Business terms used in ABF analyst conversations and on the server-side skill de
 
 ## Core entities
 
-- **Transaction** — a securitization deal. Sometimes called "deal" or "securitization" by analysts. The unit of analytical scope; a stratification analytics is always scoped to one or more transactions.
+- **Transaction** — a securitization deal. Sometimes called "deal" or "securitization" by analysts. The unit of analytical scope; a table analytics is always scoped to one or more transactions.
 - **Originator** — the institution that originated the underlying loans / receivables.
 - **Asset class** — the type of underlying asset (e.g. financial credit, real estate, vehicle, commercial credit). Closed list — see `securitizations://asset-classes` resource.
 - **Tranche** — a securitization layer with a defined seniority and cash-flow priority. Surfaced by waterfall tools.
 
 ## Analytics objects
 
-- **Stratification Analytics** (analysts may still call it "strat view" or "view" out of habit) — a saved analytical slice on a Dynamic Analytics. Defines aggregations, group-bys, filters, and chart types. Returns a Count column plus the metric columns.
-- **Dynamic Analytics** — the entity-relational substrate underneath stratification analytics. Defines the row grain, joined entities, and the column projection (Standard / Custom / Calculated / Aggregation).
+- **Table Analytics** (analysts may still call it "strat view" or "view" out of habit) — a saved analytical slice on a Dataset Analytics. Defines aggregations, group-bys, filters, and chart types. Returns a Count column plus the metric columns.
+- **Dataset Analytics** — the entity-relational substrate underneath table analytics. Defines the row grain, joined entities, and the column projection (Standard / Custom / Calculated / Aggregation).
 - **Aggregation** — a metric computed over rows (sum / avg / count / percentile / etc.). Has a `name`, `aggregation_function`, and optionally `filters`.
 - **Group-by** — a dimension columns rows are grouped along. Date dimensions use a `date_cluster_type`; numeric dimensions can use bucket clusters.
 - **Filter** — a predicate applied to rows. Three stages: `pre_aggregation` (Simple / Custom columns, applied to source rows), `post_aggregation` (Aggregation columns, removes groups by computed value), `post_projection` (Calculated columns, applied to derived expressions).
 
 ## Time and reporting
 
-- **Reporting date** — the as-of date the analytics snapshot represents. Stratification Analytics data is always returned AS OF the transaction's most recent asset synchronization date.
+- **Reporting date** — the as-of date the analytics snapshot represents. Table Analytics data is always returned AS OF the transaction's most recent asset synchronization date.
 - **Vintage / cohort** — origination month/quarter/year of the underlying loans, used as a group-by dimension in vintage analyses.
 - **Term on book / seasoning** — months elapsed since origination, the dimension paired with vintage in cumulative-loss/prepayment matrices.
 
 ## Performance metrics
 
 - **Outstanding balance** — current principal balance on the underlying assets.
-- **DPD (Days Past Due)** / **DID (Days In Delay)** — days a loan is delinquent. Bucketed in stratifications (0-30, 30-60, 60-90, 90+).
+- **DPD (Days Past Due)** / **DID (Days In Delay)** — days a loan is delinquent. Bucketed in tables (0-30, 30-60, 60-90, 90+).
 - **Default** — terminal credit event. The exact detection rule varies per integration (servicer-flag / DPD threshold / charge-off date).
 - **Write-off / charge-off** — accounting recognition of a default.
 - **Repurchase** — originator buys back a loan, often for an early-payment-default or rep-and-warranty breach.

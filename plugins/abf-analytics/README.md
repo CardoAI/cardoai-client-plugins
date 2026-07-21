@@ -1,6 +1,6 @@
 # abf-analytics
 
-Ask about your ABF (Asset-Based Finance) transactions in plain language — stratification, delinquency/loss/prepayment analysis, and full portfolio reports. Read-only: it queries and explains data, never creates or edits it.
+Ask about your ABF (Asset-Based Finance) transactions in plain language — table, delinquency/loss/prepayment analysis, and full portfolio reports. Read-only: it queries and explains data, never creates or edits it.
 
 **Installation** (Claude Code or the Claude app): see the [main README](../../README.md).
 
@@ -12,7 +12,7 @@ Ask about your ABF (Asset-Based Finance) transactions in plain language — stra
 - *Slice the portfolio by vintage and loan-to-value.*
 - *Give me a full report on `<transaction name>`.*
 
-The skill activates automatically when you mention a transaction name, stratification, or portfolio analytics — no special syntax needed. If it doesn't kick in, ask explicitly: "Use abf-analytics to look up...".
+The skill activates automatically when you mention a transaction name, table, or portfolio analytics — no special syntax needed. If it doesn't kick in, ask explicitly: "Use abf-analytics to look up...".
 
 ## How it works
 

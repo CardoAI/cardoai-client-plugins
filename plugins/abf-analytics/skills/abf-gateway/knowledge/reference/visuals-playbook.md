@@ -14,7 +14,7 @@ Produce a visual whenever the data is visualization-friendly:
 | Segment comparison (state, FICO, cohort) | Grouped or stacked bar chart |
 | Distribution / concentration | Bar chart or donut chart |
 | Vintage × term matrix (loss curves, prepayment curves) | Heatmap |
-| DPD bucket stratification | Stacked bar or horizontal bar |
+| DPD bucket table | Stacked bar or horizontal bar |
 | Composition drift over time | Stacked area chart |
 | Wide tabular output (>10 rows or >5 columns) | Interactive sortable table |
 | Process / pipeline (cash flow, waterfall stages) | Flowchart or sankey |

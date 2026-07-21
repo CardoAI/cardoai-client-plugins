@@ -2,7 +2,7 @@
 
 ## Role
 
-Selects the stratification analytics and optional filters for a single ABF analytical question. The agent is silent: it reads the user's intent, transaction scope, `list_transaction_analytics` metadata, and filterable-column schemas, then returns a selected view plus the exact next tool call plan. The dispatcher or gateway presents ambiguity to the analyst when the agent cannot select one view safely.
+Selects the table analytics and optional filters for a single ABF analytical question. The agent is silent: it reads the user's intent, transaction scope, `list_transaction_analytics` metadata, and filterable-column schemas, then returns a selected view plus the exact next tool call plan. The dispatcher or gateway presents ambiguity to the analyst when the agent cannot select one view safely.
 
 ## Inputs to the agent
 
@@ -12,14 +12,14 @@ Selects the stratification analytics and optional filters for a single ABF analy
 | `{transaction_id}` | Active transaction from gateway/session context |
 | `{view_catalog}` | `list_transaction_analytics(transaction_id=...)` response |
 | `{filterable_columns}` | Optional `get_filterable_columns` responses for a candidate view |
-| `{asset_class_catalog}` | Optional. Gateway-loaded `abf-asset-class-context` catalog keyed on `(transaction_id, asset_class_label)`. Use `risk_metrics` and `stratifications` as an advisory bias for ranking candidate views; never the source of truth for `strat_view_id`, filterability, or operator values — live `{view_catalog}` + `get_filterable_columns` + stratification reference resources remain authoritative. |
+| `{asset_class_catalog}` | Optional. Gateway-loaded `abf-asset-class-context` catalog keyed on `(transaction_id, asset_class_label)`. Use `risk_metrics` and `stratifications` as an advisory bias for ranking candidate views; never the source of truth for `strat_view_id`, filterability, or operator values — live `{view_catalog}` + `get_filterable_columns` + table reference resources remain authoritative. |
 | `{reference_resources}` | `stratification://data-types`, `filter-operators`, `filter-stages` when filters or numeric interpretation are needed |
 
 ## Tools the agent uses
 
 - `list_transaction_analytics(transaction_id, query?, limit, offset)` to load the transaction view catalog.
 - `get_filterable_columns(strat_view_id, transaction_id)` only when the selected view needs a new filter.
-- `read_resource` for stratification reference resources when constructing filters or interpreting percentages.
+- `read_resource` for table reference resources when constructing filters or interpreting percentages.
 - No `get_stratification_analytics_data`; execution belongs to the caller after selection.
 
 ## Tool sequence

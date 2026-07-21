@@ -2,7 +2,7 @@
 name: abf-gateway
 description: >
   Use when the user asks about ABF CardoAI data, transactions, securitizations, deals, or portfolio analytics.
-  Triggers on: Transaction lookups, stratification analytics, portfolio analytics, delinquency/loss/prepayment analysis,
+  Triggers on: Transaction lookups, table analytics, portfolio analytics, delinquency/loss/prepayment analysis,
   comprehensive reports, cross-transaction comparison, browsing available transactions, exploring available analytics,
   understanding filterable columns, waterfall/cash-flow/tranche/distribution analysis.
 ---
@@ -86,7 +86,7 @@ When a loaded skill says "never X" or "always Y first", that is binding behavior
 
 ## Local agent contracts
 
-- `agents/view-selector.md` — consumed by `abf-report-runner`; selects the stratification analytics + filters for a single analytical question. Inline only.
+- `agents/view-selector.md` — consumed by `abf-report-runner`; selects the table analytics + filters for a single analytical question. Inline only.
 
 ## Reference knowledge
 

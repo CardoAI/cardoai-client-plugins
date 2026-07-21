@@ -1,4 +1,4 @@
-# Reading Stratification Tables
+# Reading Tables
 
 How to read a `get_stratification_analytics_data` response (and a platform CSV export) correctly. This is a reading discipline, not a calculation guide: values returned by the analytics are authoritative and are stated as-is. Agent-side recomputation of anything the view already provides is a fallback that runs only with the analyst's explicit confirmation (last section).
 

@@ -21,7 +21,7 @@ Small summary tables (≤5 rows × 5 columns) are allowed when essential to the 
 | 4 | `prepayment` | `catalog.on_demand.prepayment` via `read_resource` |
 | 5 | `concentration` | `catalog.on_demand.concentration` via `read_resource` |
 
-**Why Blocks 1–2 are inline and Blocks 3–5 are served sections.** Blocks 3–5 have asset-class applicability gates (`loss-vintage` requires `cf_determinism: YES`; `prepayment` requires `loan_sim_fit: YES|PARTIAL`; `concentration` bifurcates consumer vs. non-consumer). Each methodology is served by the ABF MCP server alongside the asset-class index — the same authority that determines applicability — and the index pre-computes the gates: a gated-off block's `on_demand` key arrives as `null`. Blocks 1–2 use universal portfolio shape (balance, count, WA metrics, DQ stratification) with no asset-class gate, so the spec stays inline.
+**Why Blocks 1–2 are inline and Blocks 3–5 are served sections.** Blocks 3–5 have asset-class applicability gates (`loss-vintage` requires `cf_determinism: YES`; `prepayment` requires `loan_sim_fit: YES|PARTIAL`; `concentration` bifurcates consumer vs. non-consumer). Each methodology is served by the ABF MCP server alongside the asset-class index — the same authority that determines applicability — and the index pre-computes the gates: a gated-off block's `on_demand` key arrives as `null`. Blocks 1–2 use universal portfolio shape (balance, count, WA metrics, DQ table) with no asset-class gate, so the spec stays inline.
 
 ## Block 1 — Executive Summary & Portfolio Overview
 
@@ -35,11 +35,11 @@ Small summary tables (≤5 rows × 5 columns) are allowed when essential to the 
 
 ## Block 2 — Credit Performance Analysis
 
-**Retrieve:** DQ stratification, DQ trend views.
+**Retrieve:** DQ table, DQ trend views.
 
 **Analyze:** DQ as % of outstanding balance per bucket. Trend direction (stable / rising / accelerating / volatile). Flag >15% MoM growth. Note negative selection (lower FICO, higher APR in delinquent loans).
 
-**Format:** Delinquency stratification narrative (current %, largest bucket, 90+ balance) + trend narrative (direction per bucket, 90+ trajectory with 2-3 data points).
+**Format:** Delinquency table narrative (current %, largest bucket, 90+ balance) + trend narrative (direction per bucket, 90+ trajectory with 2-3 data points).
 
 **Default visual** (when visuals are on): multi-series line chart of DQ % per bucket over time.
 
