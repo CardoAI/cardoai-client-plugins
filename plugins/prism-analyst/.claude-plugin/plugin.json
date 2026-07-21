@@ -1,6 +1,6 @@
 {
   "name": "prism-analyst",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "Multi-agent verified retrieval for Prism deals/transactions. Bundles the prism-analyst skill and connects to the Prism MCP server.",
   "author": {
     "name": "CardoAI",

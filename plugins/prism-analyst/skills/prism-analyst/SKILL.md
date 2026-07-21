@@ -1,7 +1,7 @@
 ---
 name: prism-analyst
-description: Use when the user asks about a Prism deal or transaction, mentions a deal by name (e.g. "NBPE", "westlake", "volkswagen", "ftai"), or asks about portfolio data, sector allocation, top companies, KPIs, NAV, or any financial metric that requires querying the Prism MCP tools.
-version: 3.0.0
+description: Use when the user asks about a Prism deal or transaction, mentions a deal by name (e.g. "NBPE", "westlake", "pavlov"), or asks about portfolio data, NAV, KPIs, sector allocation, or fiber-network metrics (passings, penetration, ARPU, churn, leverage) that require querying the Prism MCP tools.
+version: 3.1.0
 ---
 
 # Prism Analyst - Domain-Orchestrated Multi-Agent Retrieval
@@ -17,9 +17,9 @@ This skill uses a hierarchical multi-agent architecture where domain-specialized
                     └──┬───┬───┬───┬───┬────┘
                        │   │   │   │   │
   Wave 1 (parallel):   │   │   │   │   │
-    Performance Agent ──┘   │   │   │   │   (each spawns 2-3 Haiku sub-agents)
-    Cash Flow Agent ────────┘   │   │   │
-    Composition Agent ──────────┘   │   │
+    Wave-1 Specialist 1 ┘   │   │   │   │   (3 specialists per the deal's
+    Wave-1 Specialist 2 ────┘   │   │   │    asset class - see Step 1.6;
+    Wave-1 Specialist 3 ────────┘   │   │    each spawns 2-3 Haiku sub-agents)
                                     │   │
   Wave 2 (reads Wave 1 findings):  │   │
     Risk Agent ─────────────────────┘   │
@@ -27,6 +27,8 @@ This skill uses a hierarchical multi-agent architecture where domain-specialized
   Wave 3 (reads complete state):        │
     Reporting Agent ────────────────────┘
 ```
+
+The Wave-1 specialists are asset-class-specific: private-equity runs Performance / Cash Flow / Composition; fiber runs Network & Coverage / Commercial & Subscribers / Financial & Cash Flow. Risk (Wave 2) and Reporting (Wave 3) are the same roles across every asset class.
 
 Each domain agent is an Opus orchestrator that:
 1. Reads the Working State for cross-domain context
@@ -57,7 +59,7 @@ These are the tools provided by the Prism MCP server. Call them by name:
 2. `get_deal_skill(transaction_id=<id>)` - load operator playbook
 3. `list_field_values(field_name="doc_type", within_transaction_id=<id>)` - discover document types. `field_name` only accepts `transaction_id, doc_type, report_period, table_type, element_type, section, filename, entities` - there is no `entity` or `kpi_name` option here. For entity aliases and KPI names, use `get_deal_skill`'s `entity_aliases` / `kpi_names` fields instead.
 
-Extract: periods_available, doc_types, entity aliases, active feedback bundle, enrichment overrides.
+Extract: asset_class, periods_available, doc_types, entity aliases, active feedback bundle, enrichment overrides.
 
 ### Step 1.5 - Period Resolution
 
@@ -66,6 +68,39 @@ Determine comparison periods from `periods_available`:
 - **T-1** (prior): Immediately preceding period in the list
 - **T-1Y** (year-ago): Same calendar position ~12 months earlier
 - If user asks about a full year, T = Dec year-end, T-1Y = prior Dec year-end
+
+**Comparison basis is per metric, not global.** Each metric in a domain file declares its basis in the Comparison column:
+- `Q/Q` - current period vs the immediately preceding period (quarterly deals)
+- `T vs T-1Y` - current vs the same period one year earlier
+- `vs target` / `vs trigger` - measured against an underwriting target or a covenant/trigger level, not a prior period
+- `n/a` - a snapshot, schedule, or breakdown; no period comparison
+
+Resolve whichever prior periods the loaded set actually needs. A quarterly deal (e.g. fiber) needs T-1 (prior quarter) and T-1Y; an annual deal may need only T-1Y.
+
+### Step 1.6 - Asset-Class Selection
+
+The metric set is asset-class-specific. Resolve which domain set to use from the deal's `asset_class`:
+
+| `asset_class` value | Domain set (`references/domains/<slug>/`) | Wave-1 specialists |
+|---------------------|-------------------------------------------|--------------------|
+| `private_equity` | `private-equity` | Performance, Cash Flow, Composition |
+| `fiber_networks` (or a deal confirmed as fiber) | `fiber` | Network & Coverage, Commercial & Subscribers, Financial & Cash Flow |
+
+In every set, Risk is the Wave-2 specialist (`<slug>/risk.md`) and Reporting (`reporting.md`, shared) is Wave 3.
+
+**If `asset_class` is null or is not in the table above**, do NOT silently guess. Pick the most likely set - `private-equity` by default, or another set if the question clearly indicates one (e.g. `fiber` for passings / penetration / ARPU) - then state which set you picked and why, and **ask the user to confirm before running any retrieval**. Do not spawn Wave-1 agents until the user confirms.
+
+**Exception:** if the user's request already names the set explicitly (e.g. "use the fiber metrics for this deal"), treat that as confirmation and proceed without asking.
+
+Confirmation prompt (part of the Step 0 clarification gate):
+
+```
+This deal has no asset class set. Based on your question I'd use the
+<fiber> metric set (passings, penetration, ARPU). Shall I proceed with
+that, or use a different set? (private-equity / fiber / other)
+```
+
+Record the confirmed slug in the Working State Deal Context.
 
 ### Step 2 - Create Working State File
 
@@ -76,17 +111,18 @@ Use the template from `references/working-state-template.md`. Fill in the Deal C
 
 ### Step 3 - Wave 1: Parallel Domain Agents
 
-Spawn THREE domain agents in parallel using the Agent tool, each with `model: "opus"`:
+Spawn the Wave-1 specialists for the resolved asset class (Step 1.6) in parallel using the Agent tool, each with `model: "opus"`:
 
-**Performance Agent** - NAV, returns, value drivers, operating metrics
-**Cash Flow Agent** - Realisations, investments, distributions, liquidity
-**Composition Agent** - Holdings, sector/geography allocation, portfolio changes
+- **private-equity:** Performance (NAV, returns, value drivers) · Cash Flow (realisations, distributions, liquidity) · Composition (holdings, sector/geography allocation)
+- **fiber:** Network & Coverage (passings, build cost) · Commercial & Subscribers (penetration, ARPU, churn) · Financial & Cash Flow (revenue, EBITDA, capex, liquidity)
+
+Each reads its own file at `references/domains/<asset-class>/<domain>.md`.
 
 Each domain agent's prompt must include:
 - The deal context (transaction_id, periods, doc_types, entity aliases)
 - The comparison periods (T, T-1, T-1Y)
 - The user's question
-- Its domain specification (from `references/domains/<domain>.md`)
+- Its domain specification (from `references/domains/<asset-class>/<domain>.md`, where `<asset-class>` is the set resolved in Step 1.6 - Asset-Class Selection)
 - This rule, verbatim: **"The metric table in your domain file is a catalog, not a checklist. Retrieve the metrics the question needs, plus any required to cross-validate them. Leave the rest unfetched."**
 - This rule, verbatim: **"Require a `chunk_uuid` from every sub-agent for every data point, and pass them through in your findings. Step 5's `score_answer` call needs the `chunk_uuid` of every chunk the answer draws on - a missing one cannot be recovered later."**
 - Instructions to spawn 2-3 Haiku sub-agents internally, cross-validate, and return structured findings
@@ -103,14 +139,12 @@ Each domain agent must return:
 
 After all Wave 1 agents return:
 
-1. **Read** all three domain agent outputs
+1. **Read** the Wave-1 domain agent outputs
 2. **Write** their findings to the Working State file (each to its own section)
-3. **Detect cross-domain signals:**
-   - If Performance shows NAV declined but EBITDA grew -> flag "multiple contraction" for Risk
-   - If Cash Flow shows realisations < distributions -> flag "funding gap" for Risk
-   - If Composition shows concentration increased -> flag for Risk
-   - If Performance shows large FX impact -> flag for Risk with specific amount
-4. **Write** cross-domain signals to the Risk Agent's "Cross-Domain Inputs" section
+3. **Detect cross-domain signals** for the Risk agent to investigate. Which signals to watch for is asset-class-specific - the resolved set's `risk.md` lists them under "Cross-Domain Inputs". Examples:
+   - **private-equity:** NAV declined but EBITDA grew -> "multiple contraction"; realisations < distributions -> "funding gap"; concentration increased -> single-name risk; large FX impact -> flag with the amount
+   - **fiber:** penetration slipping vs passings growth -> pressure on covenant headroom / DSCR; liquidity squeeze -> check facility utilisation and near-term maturities
+4. **Write** the detected signals to the Risk Agent's "Cross-Domain Inputs" section
 
 ### Step 4 - Wave 2: Risk Agent
 
@@ -162,7 +196,9 @@ The Reporting Agent produces, and the parent presents, exactly these sections in
 | Metric | Current (T) | Prior (T-1Y) | Delta | % Change | Flag |
 |--------|------------|-------------|-------|----------|------|
 
-Flag symbols: `>>>` significant positive (>15%) | `<<<` significant negative (>15%) | `~` stable | `!` directional concern (narrative vs. numbers) | `-` no prior data
+Flag symbols: `>>>` significant positive (>15%) | `<<<` significant negative (>15%) | `~` stable | `!` directional concern (narrative vs. numbers) | `-` no prior data | `[T]` at/above target or within trigger headroom | `[X]` below target or breaching a trigger
+
+For `vs target` / `vs trigger` metrics, compare against the target/trigger level (not a prior period) and use `[T]` / `[X]`. For those rows the "Prior (T-1Y)" column holds the target/trigger value instead of a prior period.
 
 **Answer** - clear, direct response with analysis and interpretation. A caveat that is not attached to a specific value belongs here, in the prose, where it is read - not in a footer.
 
@@ -213,11 +249,11 @@ Not every question requires all Wave 1/Wave 2 domain agents. The parent scopes W
 
 | Query Type | Wave 1 / Wave 2 agents to spawn |
 |------------|--------------------------------|
-| Specific metric (e.g., "what is the NAV?") | Relevant domain agent only (e.g., Performance) |
-| Company deep-dive (e.g., "Solenis performance") | Performance + Composition (Wave 1), then Risk (Wave 2) |
-| Full review / scan | Performance + Cash Flow + Composition (Wave 1), then Risk (Wave 2) |
-| Risk question | Performance (Wave 1 for context) + Risk (Wave 2) |
-| Comparison question | Relevant domain(s) with emphasis on T-1Y retrieval |
+| Single metric (PE "what's the NAV?"; fiber "what's the penetration?") | The one relevant Wave-1 domain agent |
+| Entity / company deep-dive (a holding, a market, a catalog) | The two most relevant Wave-1 domains, then Risk (Wave 2) |
+| Full review / scan | All three Wave-1 specialists, then Risk (Wave 2) |
+| Risk / leverage question | One Wave-1 domain for context + Risk (Wave 2) |
+| Comparison question | Relevant domain(s), emphasis on the prior-period retrieval (T-1Y or prior quarter) |
 
 When scoping down, still create the Working State file - just leave unused domain sections empty.
 
@@ -285,7 +321,7 @@ There is no per-value or per-source confidence - chart values, like all others, 
 
 ## References
 
-- `references/domains/performance.md`, `cash-flow.md`, `composition.md`, `risk.md`, `reporting.md` - per-domain metric catalogs, sub-agent search strategies, cross-validation rules, red flag triggers. Each domain agent reads only its own file.
+- `references/domains/<asset-class>/*.md` - per-domain metric catalogs, sub-agent search strategies, cross-validation rules, red flag triggers, one set per asset class (`private-equity/`, `fiber/`). Each domain agent reads only its own file. `references/domains/reporting.md` is shared across all asset classes.
 - `references/working-state-template.md` - Working State file template and lifecycle
 - `references/prism-tools-reference.md` - Prism MCP tool signatures, parameters, and common pitfalls
 - `references/artifact-style.md` - colors, typography, page layout, and chart-type defaults for rendered artifacts (HTML dashboard, exported document, image).

@@ -12,7 +12,9 @@ Ask questions about your Prism deals in plain language — NAV, cash flows, port
 - *What are the top 10 holdings, and what changed since last year?*
 - *What's the leverage and FX exposure for `<deal name>`?*
 
-The skill activates automatically when you mention a deal name, NAV, KPIs, portfolio data, or similar — no special syntax needed. If it doesn't kick in, ask explicitly: "Use prism-analyst to look up...".
+The metrics adapt to the deal's asset class - private-equity funds are reviewed on NAV, holdings, and sector allocation; fiber networks on passings, penetration, ARPU, and covenant headroom. If a deal's asset class isn't set, the assistant proposes the most likely set (private equity by default, or fiber if your question is clearly about it) and asks you to confirm before retrieving - unless you already named the set in your request.
+
+The skill activates automatically when you mention a deal name, NAV, KPIs, portfolio data, or similar - no special syntax needed. If it doesn't kick in, ask explicitly: "Use prism-analyst to look up...".
 
 ## How it works
 
