@@ -87,7 +87,7 @@ For single-query analytical answers:
 2. **≤3 sentences by default.** Add a chart or short table if it helps interpretation, but body prose stays tight. The analyst expands the ask if they want depth.
 3. Key evidence from the selected analytics (one line, ideally a single figure or comparison).
 4. Caveats only if they change interpretation — skip filler caveats.
-5. **Source link — MANDATORY.** End with the analytics name and source `url` for **each** `get_stratification_analytics_data` retrieval the answer drew on. Every response carries the analytics' frontend `url`; surface each one verbatim on the last line(s) so the analyst can open the full dataset on the platform. This is binding, not "when available" — if a retrieval backed the answer, its `url` MUST appear; an answer spanning multiple views (cross-transaction, or current-vs-prior) lists every source, not just one. The line is omitted only when no analytics retrieval backed the answer at all.
+5. **Source link — MANDATORY.** End with the analytics name and source `url` for **each** `get_stratification_analytics_data` retrieval the answer drew on. Read it off the `Source:` line at the top of the response's `csv` block (the same link is also in the `url` field and in `message`); surface each one verbatim on the last line(s) so the analyst can open the full dataset on the platform. This is binding, not "when available" — if a retrieval backed the answer, its `url` MUST appear; an answer spanning multiple views (cross-transaction, or current-vs-prior) lists every source, not just one. The line is omitted only when no analytics retrieval backed the answer at all.
 
 Do not explain how the analytics was selected unless the analyst asks or selection was ambiguous.
 

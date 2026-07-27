@@ -7,7 +7,7 @@ The runner walks blocks 1–5 in order, skipping any whose domain the analyst pu
 Do NOT reproduce full data tables. For every data point:
 - Summarize 3-5 most significant figures inline
 - Highlight outliers and inflection points
-- **Append the source link — MANDATORY.** Every block that fetches data ends with the source `url` from each `get_stratification_analytics_data` response it drew on, so the analyst can open the full dataset on the platform. The `url` is embedded in every response; never deliver a block's figures without its source link.
+- **Append the source link — MANDATORY.** Every block that fetches data ends with the source `url` from each `get_stratification_analytics_data` response it drew on, so the analyst can open the full dataset on the platform. The `url` is on the `Source:` line at the top of each response's `csv` block; capture it when you summarize the figures, because the table itself is discarded. Never deliver a block's figures without its source link.
 
 Small summary tables (≤5 rows × 5 columns) are allowed when essential to the narrative. Larger tables → link to the platform instead.
 
