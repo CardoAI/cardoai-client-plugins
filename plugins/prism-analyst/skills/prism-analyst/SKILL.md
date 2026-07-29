@@ -1,64 +1,43 @@
 ---
 name: prism-analyst
-description: Use when the user asks about a Prism deal or transaction, mentions a deal by name (e.g. "NBPE", "westlake", "pavlov"), or asks about portfolio data, NAV, KPIs, sector allocation, or fiber-network metrics (passings, penetration, ARPU, churn, leverage) that require querying the Prism MCP tools.
-version: 3.1.0
+description: This skill should be used when the user asks about a Prism deal or transaction, mentions a deal by name (e.g. "NBPE", "westlake", "volkswagen", "ftai"), asks about portfolio data, sector allocation, top companies, KPIs, NAV, financial metrics, or any question that requires querying the Prism MCP tools. Session-orchestrated single-agent-per-wave retrieval with a shared working state, confidence scoring, and source references.
+version: 4.0.0
 ---
 
-# Prism Analyst - Domain-Orchestrated Multi-Agent Retrieval
+# Prism Analyst v4 (Lite) - Session-Orchestrated Single-Agent Waves
 
-This skill uses a hierarchical multi-agent architecture where domain-specialized orchestrator agents (Opus) each spawn and manage their own sub-agents (Haiku), exchange data through a shared Working State file, and produce verified, confidence-scored analysis.
-
-## Architecture
+Same protocol spine as prism-analyst v3.1.0, restructured for latency: **the main session IS the orchestrator.** It loads deal context, maintains the Working State, spawns ONE worker agent per wave (`model: "sonnet"`), cross-validates results itself, and presents the answer. There are no Opus domain orchestrators and no Haiku sub-agent fan-outs.
 
 ```
-                    ┌────────────────────────┐
-                    │     WORKING STATE      │
-                    │   (shared .md file)     │
-                    └──┬───┬───┬───┬───┬────┘
-                       │   │   │   │   │
-  Wave 1 (parallel):   │   │   │   │   │
-    Wave-1 Specialist 1 ┘   │   │   │   │   (3 specialists per the deal's
-    Wave-1 Specialist 2 ────┘   │   │   │    asset class - see Step 1.6;
-    Wave-1 Specialist 3 ────────┘   │   │    each spawns 2-3 Haiku sub-agents)
-                                    │   │
-  Wave 2 (reads Wave 1 findings):  │   │
-    Risk Agent ─────────────────────┘   │
-                                        │
-  Wave 3 (reads complete state):        │
-    Reporting Agent ────────────────────┘
+            MAIN SESSION (orchestrator + validator)
+                 |            |            |
+  Wave 1:  one Retrieval   Wave 2:     Wave 3:
+           worker (sonnet) one Risk    one Reporting
+           covering ALL    worker      worker (sonnet)
+           in-scope        (sonnet,    - always runs
+           domains         only if
+                           scoped in)
 ```
 
-The Wave-1 specialists are asset-class-specific: private-equity runs Performance / Cash Flow / Composition; fiber runs Network & Coverage / Commercial & Subscribers / Financial & Cash Flow. Risk (Wave 2) and Reporting (Wave 3) are the same roles across every asset class.
-
-Each domain agent is an Opus orchestrator that:
-1. Reads the Working State for cross-domain context
-2. Spawns 2-3 Haiku sub-agents in parallel with different search strategies
-3. Cross-validates sub-agent results, selects the best value per metric
-4. Logs its decision rationale (which sub-agent was chosen and why)
-5. Writes verified findings to its section of the Working State
-6. Flags gaps and red flags for other domain agents
+What each worker loses vs v3: redundant multi-strategy retrieval and a dedicated cross-validation layer. What replaces it: the Session Validation Protocol below (structural cross-checks by the session) and unchanged answer-side scoring via `score_answer`.
 
 ## Core Protocol
 
 ### Step 0 - Clarification Gate
 
-Before any retrieval, evaluate the question for ambiguity:
-
+Before any retrieval, evaluate the question for ambiguity on four dimensions 
 - **Deal**: Can the deal be resolved to a canonical transaction_id? If not, call `list_deals` and ask.
 - **Period**: Is a specific reporting period clear? If ambiguous, ask.
 - **Metric**: Is the requested data point specific enough? If vague, ask.
 - **Scope**: Single value, trend, or comparison? If unclear, ask.
 
-If ANY dimension is ambiguous, ask a concise clarifying question. Do NOT guess.
+If ANY dimension is ambiguous, ask ONE concise clarifying question. Do NOT guess.
 
-### Step 1 - Load Deal Context (MANDATORY)
-
-These are the tools provided by the Prism MCP server. Call them by name:
+### Step 1 - Load Deal Context (MANDATORY, done by the session)
 
 1. `list_deals()` - resolve deal name to transaction_id. Results are paginated (default `limit=50`); if the deal isn't in the first page, page through with `offset` before asking the user to disambiguate.
 2. `get_deal_skill(transaction_id=<id>)` - load operator playbook
 3. `list_field_values(field_name="doc_type", within_transaction_id=<id>)` - discover document types. `field_name` only accepts `transaction_id, doc_type, report_period, table_type, element_type, section, filename, entities` - there is no `entity` or `kpi_name` option here. For entity aliases and KPI names, use `get_deal_skill`'s `entity_aliases` / `kpi_names` fields instead.
-
 Extract: asset_class, periods_available, doc_types, entity aliases, active feedback bundle, enrichment overrides.
 
 ### Step 1.5 - Period Resolution
@@ -79,14 +58,10 @@ Resolve whichever prior periods the loaded set actually needs. A quarterly deal 
 
 ### Step 1.6 - Asset-Class Selection
 
-The metric set is asset-class-specific. Resolve which domain set to use from the deal's `asset_class`:
-
-| `asset_class` value | Domain set (`references/domains/<slug>/`) | Wave-1 specialists |
-|---------------------|-------------------------------------------|--------------------|
+| `asset_class` value | Domain set (`references/domains/<slug>/`) | Wave-1 domain scope |
+|---------------------|-------------------------------------------|---------------------|
 | `private_equity` | `private-equity` | Performance, Cash Flow, Composition |
-| `fiber_networks` (or a deal confirmed as fiber) | `fiber` | Network & Coverage, Commercial & Subscribers, Financial & Cash Flow |
-
-In every set, Risk is the Wave-2 specialist (`<slug>/risk.md`) and Reporting (`reporting.md`, shared) is Wave 3.
+| `fiber_networks` (or confirmed fiber) | `fiber` | Network & Coverage, Commercial & Subscribers, Financial & Cash Flow |
 
 **If `asset_class` is null or is not in the table above**, do NOT silently guess. Pick the most likely set - `private-equity` by default, or another set if the question clearly indicates one (e.g. `fiber` for passings / penetration / ARPU) - then state which set you picked and why, and **ask the user to confirm before running any retrieval**. Do not spawn Wave-1 agents until the user confirms.
 
@@ -104,224 +79,143 @@ Record the confirmed slug in the Working State Deal Context.
 
 ### Step 2 - Create Working State File
 
-Create the Working State file at:
-`~/.claude/Projects/Prism/.prism-workspace/session-{deal}-{period}-{timestamp}.md`
+Create `~/.claude/Projects/Prism/.prism-workspace/session-{deal}-{period}-{timestamp}.md` with the slim template at the end of this file. The session (not the workers) writes to it: after each wave, merge that wave's findings in.
 
-Use the template from `references/working-state-template.md`. Fill in the Deal Context section with data from Steps 1 and 1.5.
+### Step 3 - Wave 1: ONE Retrieval Worker
 
-### Step 3 - Wave 1: Parallel Domain Agents
+Apply the Scoping Rules below to decide which domains are in scope. Spawn ONE agent with `model: "sonnet"` whose prompt contains:
 
-Spawn the Wave-1 specialists for the resolved asset class (Step 1.6) in parallel using the Agent tool, each with `model: "opus"`:
-
-- **private-equity:** Performance (NAV, returns, value drivers) · Cash Flow (realisations, distributions, liquidity) · Composition (holdings, sector/geography allocation)
-- **fiber:** Network & Coverage (passings, build cost) · Commercial & Subscribers (penetration, ARPU, churn) · Financial & Cash Flow (revenue, EBITDA, capex, liquidity)
-
-Each reads its own file at `references/domains/<asset-class>/<domain>.md`.
-
-Each domain agent's prompt must include:
-- The deal context (transaction_id, periods, doc_types, entity aliases)
-- The comparison periods (T, T-1, T-1Y)
+- The deal context (transaction_id, periods with any missing-period warnings, doc_types, entity aliases, relevant feedback-bundle rules)
+- The comparison periods (T, T-1, T-1Y or "does not exist")
 - The user's question
-- Its domain specification (from `references/domains/<asset-class>/<domain>.md`, where `<asset-class>` is the set resolved in Step 1.6 - Asset-Class Selection)
-- This rule, verbatim: **"The metric table in your domain file is a catalog, not a checklist. Retrieve the metrics the question needs, plus any required to cross-validate them. Leave the rest unfetched."**
-- This rule, verbatim: **"Require a `chunk_uuid` from every sub-agent for every data point, and pass them through in your findings. Step 5's `score_answer` call needs the `chunk_uuid` of every chunk the answer draws on - a missing one cannot be recovered later."**
-- Instructions to spawn 2-3 Haiku sub-agents internally, cross-validate, and return structured findings
+- The question-relevant metric rows AND search strategies from EACH in-scope domain file (`references/domains/<set>/<domain>.md`) - one combined brief, not one agent per domain
+- This rule, verbatim: **"The metric table in your brief is a catalog, not a checklist. Retrieve the metrics the question needs, plus any required to cross-validate them. Leave the rest unfetched."**
+- This rule, verbatim: **"Tag every data point [TABLE] / [TEXT] / [CHART/IMAGE] / [KPI_EXTRACTED] and carry the `chunk_uuid` from the result header for every value - a value without a chunk_uuid cannot be scored later."**
+- Budget: at most 10 `search_deal_documents` calls; stop when targets are found or clearly absent. No `render_figure`, no `score_answer`.
+- Return contract: verified-metric table (metric, T value, prior value, source type + document + page + chunk_uuid), gaps, candidate red flags, verbatim GP narrative quotes with chunk_uuids, [CHART/IMAGE] values needing corroboration, and the number of MCP calls made.
 
-Each domain agent must return:
-- Verified metrics table (metric, T value, T-1Y value, source, `chunk_uuid`) - Step 5's `score_answer` call needs the `chunk_uuid` of every chunk the answer draws on
-- Sub-agent decision log (which sub-agent was selected per metric and why)
-- Gaps (metrics it couldn't find)
-- Red flags (anomalies detected)
-- Narrative fragments (GP quotes for later audit)
-- Chart/image data points (tagged for corroboration, with `chunk_uuid` when the source is a figure - needed for `render_figure`)
+**Session validation (replaces the v3 Opus orchestrators):** run the Session Validation Protocol on the worker's output, write verified findings to the Working State, and detect cross-domain signals (the v3 Step 3.5 list: value declined while drivers positive, concentration triggers, funding gaps, large FX impact, covenant/liquidity pressure).
 
-### Step 3.5 - Merge Wave 1 & Detect Cross-Domain Signals
+### Step 4 - Wave 2: ONE Risk Worker (only when scoped in)
 
-After all Wave 1 agents return:
+Spawn ONLY when the Scoping Rules call for Risk. ONE agent, `model: "sonnet"`, prompt containing: Wave-1 verified findings, the detected cross-domain signals, the risk domain file's question-relevant rows/strategies, the two verbatim rules from Step 3, a budget of at most 5 searches, and the same return contract. Session validates and merges as in Step 3.
 
-1. **Read** the Wave-1 domain agent outputs
-2. **Write** their findings to the Working State file (each to its own section)
-3. **Detect cross-domain signals** for the Risk agent to investigate. Which signals to watch for is asset-class-specific - the resolved set's `risk.md` lists them under "Cross-Domain Inputs". Examples:
-   - **private-equity:** NAV declined but EBITDA grew -> "multiple contraction"; realisations < distributions -> "funding gap"; concentration increased -> single-name risk; large FX impact -> flag with the amount
-   - **fiber:** penetration slipping vs passings growth -> pressure on covenant headroom / DSCR; liquidity squeeze -> check facility utilisation and near-term maturities
-4. **Write** the detected signals to the Risk Agent's "Cross-Domain Inputs" section
+### Step 5 - Wave 3: ONE Reporting Worker (always runs)
 
-### Step 4 - Wave 2: Risk Agent
+ONE agent, `model: "sonnet"`. Its prompt includes the complete Working State and the full chunk_uuid list. It runs, in order, no branches:
 
-Spawn ONE Risk Agent with `model: "opus"`. Its prompt must include:
-- Everything from Wave 1 (via the Working State or direct output)
-- The cross-domain signals identified in Step 3.5
-- Instructions to investigate these specific signals with targeted sub-agents
-- Its domain specification
+1. Fill remaining gaps the final answer genuinely needs (at most 4 searches).
+2. Corroborate every [CHART/IMAGE] value **that the answer will use**: `render_figure(chunk_uuid)` pixel-check OR one independent TEXT/TABLE source - stop at the first success; record CORROBORATED / PARTIALLY_CORROBORATED / UNCORROBORATED.
+3. Audit GP narrative against verified numbers - produces the `!` flags.
+4. Compute period-over-period deltas and flags.
+5. Draft the answer per Step 6.
+6. Collect ⚠ Flagged Data rows from exactly the three signals in Step 6.
+7. `score_answer(question=<user question>, answer=<full draft>, chunk_uuids=[<every chunk used>])` - ONCE, never per metric. Use only `band` and `reason`.
+8. Return: the draft, band + reason verbatim, the methodology block (agents, conflicts resolved, corroboration tally), and its MCP call count.
 
-The Risk Agent:
-1. Reads Wave 1 findings and cross-domain signals
-2. Spawns 2-3 Haiku sub-agents, including at least one targeted at the flagged signals
-3. Cross-validates, writes verified risk metrics to the state
-4. Flags any new red flags discovered
-
-### Step 4.5 - Update Working State
-
-Write Risk Agent findings to the Working State. Compile the complete Cross-Domain Red Flags table.
-
-### Step 5 - Wave 3: Reporting Agent
-
-Spawn ONE Reporting Agent with `model: "opus"`. The Reporting Agent ALWAYS runs, on every question, however narrowly scoped - it owns `score_answer`, the Sources table, and the pre-emit check, all of which are mandatory on every answer.
-
-Its prompt must include the complete Working State, all chart/image data points needing corroboration, and all narrative fragments for audit.
-
-The Reporting Agent runs these steps in order. There are no branches:
-
-1. Fill any remaining PENDING metrics (spawn gap-filler Haiku sub-agents)
-2. Corroborate every `[CHART/IMAGE]` data point per the Chart/Image Rules below
-3. Audit GP narrative against the verified numbers - this produces the `!` flags
-4. Compute all period-over-period deltas and flags
-5. Draft the answer
-6. Collect the ⚠ Flagged Data rows from the three signals listed in Step 6
-7. Score the FINAL ANSWER once, never per metric:
-   `score_answer(question="<the user's question>", answer="<your drafted answer>", chunk_uuids=[<every chunk_uuid the answer draws on>])`
-   Use only the returned `band` and `reason`. Ignore every other field.
-8. Write the Methodology block into the Working State's Report Draft section (never into the answer)
-9. Self-check before emitting: the Sources table is present and non-empty, and every value stated in the answer has a row in it. Add any missing row; do not emit otherwise
-10. Emit the structured response per Step 6
-
-Nothing blocks the report. A `low` band is reported, not adjudicated.
+**Session pre-emit check:** every value and named item in the draft has a row in the Sources table; the Working State gets the methodology block; then present.
 
 ### Step 6 - Structured Response
 
-The Reporting Agent produces, and the parent presents, exactly these sections in this order:
+Identical contract to v3.1.0. The session presents exactly these sections in this order:
 
 **Period Comparison** table (always included when comparison data exists):
 
 | Metric | Current (T) | Prior (T-1Y) | Delta | % Change | Flag |
 |--------|------------|-------------|-------|----------|------|
 
-Flag symbols: `>>>` significant positive (>15%) | `<<<` significant negative (>15%) | `~` stable | `!` directional concern (narrative vs. numbers) | `-` no prior data | `[T]` at/above target or within trigger headroom | `[X]` below target or breaching a trigger
+Flag symbols: `>>>` significant positive (>15%) | `<<<` significant negative (>15%) | `~` stable | `!` directional concern | `-` no prior data | `[T]` at/above target or within trigger headroom | `[X]` below target or breaching a trigger. For `vs target` / `vs trigger` metrics the "Prior" column holds the target/trigger value.
 
-For `vs target` / `vs trigger` metrics, compare against the target/trigger level (not a prior period) and use `[T]` / `[X]`. For those rows the "Prior (T-1Y)" column holds the target/trigger value instead of a prior period.
+**Answer** - clear, direct response with analysis. Caveats not attached to a specific value belong here, in the prose.
 
-**Answer** - clear, direct response with analysis and interpretation. A caveat that is not attached to a specific value belongs here, in the prose, where it is read - not in a footer.
+**Sources** - MANDATORY on every answer, never inlined in prose: one row per data point stated (Data Point | Source Type `TABLE`/`TEXT`/`CHART`/`KPI` | Document short form | Page).
 
-**Sources** - MANDATORY on every answer, never inlined in prose: the provenance of EVERY data point the answer states, one row each - a single-value answer still gets a one-row table, a list gets one row per item. The value itself lives in the Answer; this table cites where each one came from. No per-metric confidence is shown.
+**⚠ Flagged Data** - ONLY when at least one flagged item exists. Rows come from exactly three signals, nowhere else: (1) unresolved conflicts from the Session Validation Protocol, (2) UNCORROBORATED or PARTIALLY_CORROBORATED chart values used in the answer, (3) `!` directional-concern flags. Never ask the user to adjudicate these.
 
-| Data Point | Source Type | Document | Page |
-|------------|-------------|----------|------|
-| NAV ($m) | `TABLE` | 2025 Annual Report | p.62 |
-| FX impact | `CHART` | 2025 Annual Report | p.26 |
-| Net Cash Flow | `CHART` | Apr 2026 Pres | p.19 |
-
-Column definitions:
-- **Source Type**: `TABLE` | `TEXT` | `CHART` | `KPI`
-- **Document**: Document name (use short form: "2025 AR", "Apr 2026 Pres", "Dec 2024 FS")
-- **Page**: Exact page for traceability
-
-**⚠ Flagged Data** - include ONLY when at least one flagged item exists; omit the section entirely otherwise. Never ask the user to confirm, correct, or adjudicate these values - show them and move on.
-
-```
-## ⚠ Flagged Data
-These values could not be fully verified. Treat with caution.
-
-| Metric | Value | Source | Issue |
-|--------|-------|--------|-------|
-| FX impact | +$34m | `CHART` 2025 AR p.26 | uncorroborated; no independent TEXT/TABLE source |
-```
-
-Rows come from exactly three signals, and nowhere else:
-1. Unresolved sub-agent conflicts (Sub-Agent Decision Protocol, step 6)
-2. `UNCORROBORATED` or `PARTIALLY_CORROBORATED` chart values (Chart/Image Rules)
-3. `!` directional-concern flags
-
-`score_answer` CANNOT supply these rows - it returns one verdict for the whole answer and identifies no specific value.
-
-**Overall Confidence** - the single `score_answer` band from Step 5, and the only confidence ever surfaced:
-- `high` or `medium` -> print no confidence line at all
-- `low` -> print exactly one line: **`Overall Confidence: 🔴 low`** - `{reason}`
-
-`{reason}` is `score_answer`'s `reason` field, passed through **verbatim**. Do not paraphrase or invent it. If `reason` is null (which happens when `judge_ran` is false), use exactly: *"the answer is not sufficiently grounded in its cited chunks."*
-
-This supersedes the deal playbook's "end with `score:`" directive - never append a separate `score: high/medium/low` line.
-
-There is no Methodology section and no Caveats section in the answer. Methodology is written to the Working State (Step 5); value-specific caveats live in ⚠ Flagged Data; everything else lives in the Answer prose.
+**Overall Confidence** - the single `score_answer` band, and the only confidence ever surfaced: `high`/`medium` -> print nothing; `low` -> exactly one line: **`Overall Confidence: 🔴 low`** - `{reason}` (verbatim; if `reason` is null use: *"the answer is not sufficiently grounded in its cited chunks."*). This supersedes the deal playbook's "end with `score:`" directive. No Methodology section, no Caveats section in the answer.
 
 ## Scoping Rules
 
-Not every question requires all Wave 1/Wave 2 domain agents. The parent scopes Wave 1 and Wave 2 based on the query. **The Reporting Agent (Wave 3) always runs regardless** - it owns `score_answer`, the Sources table, and the pre-emit check.
+Same table as v3.1.0 - the session scopes Waves 1-2 by query type; **the Reporting worker (Wave 3) always runs**:
 
-| Query Type | Wave 1 / Wave 2 agents to spawn |
-|------------|--------------------------------|
-| Single metric (PE "what's the NAV?"; fiber "what's the penetration?") | The one relevant Wave-1 domain agent |
-| Entity / company deep-dive (a holding, a market, a catalog) | The two most relevant Wave-1 domains, then Risk (Wave 2) |
-| Full review / scan | All three Wave-1 specialists, then Risk (Wave 2) |
-| Risk / leverage question | One Wave-1 domain for context + Risk (Wave 2) |
-| Comparison question | Relevant domain(s), emphasis on the prior-period retrieval (T-1Y or prior quarter) |
+| Query Type | Wave 1 domain scope / Wave 2 |
+|------------|------------------------------|
+| Single metric | The one relevant domain; no Risk |
+| Entity / company deep-dive | The two most relevant domains; then Risk |
+| Full review / scan | All three domains; then Risk |
+| Risk / leverage question | One domain for context; then Risk |
+| Comparison question | Relevant domain(s), emphasis on prior-period retrieval |
 
-When scoping down, still create the Working State file - just leave unused domain sections empty.
+Multiple in-scope domains still mean ONE Wave-1 worker with a combined brief. When scoping down, still create the Working State - leave unused sections empty.
 
-## Sub-Agent Decision Protocol
+> Candidate v4.1 addition, deliberately NOT active here to keep benchmarks comparable with v3.1.0: a "List / roster question (top-N holdings, list of X)" row mapping to the single owning domain with no Risk wave.
 
-Every domain agent follows this when its sub-agents return conflicting data:
+## Session Validation Protocol
 
-1. **Collect** all sub-agent values for the same metric
-2. **Compare** - do they agree?
-3. **If agree:** Use the value from the most authoritative source (see the hierarchy below)
-4. **If disagree:** Apply the Source Reliability Hierarchy, highest tier wins:
+Replaces v3's Sub-Agent Decision Protocol (there is no redundant retrieval to vote over). The session checks, for each wave's output:
 
-   1. **Admin-approved feedback** (enrichment knowledge overrides) - always authoritative, never contradict it
-   2. **Annual Financial Reports** - audited, most comprehensive
-   3. **Investor Presentations** - detailed but unaudited
-   4. **Factsheets** - summary snapshots, may use different classification schemes
-   5. **Schedule of Investments** (within any doc) - named holdings with exact values
-   6. **Narrative sections** - contextual but may be approximate
-   7. **Chart/image extraction** - least reliable, subject to OCR errors
-
-   Within a tier, prefer `TABLE` > `TEXT` > `KPI` > `CHART`. If still tied, use the value confirmed by more sub-agents.
-5. **Log** the decision with rationale
-6. **Flag** unresolved conflicts in the state - an unresolved value has no cleanly-grounded source, so it will score `low`
+1. **Structural cross-checks** - component values foot to stated totals; counts reconcile with the universe (e.g. holdings count vs schedule rows); percentages sum to ~100% where applicable; cross-validation rules listed in the in-scope domain files.
+2. **Conflicts between sources** - when two chunks disagree, apply the source hierarchy: admin-approved feedback > audited annual reports > investor presentations > factsheets > schedule of investments > narrative > chart/OCR; within a tier `TABLE` > `TEXT` > `KPI` > `CHART`. Log the decision in the Working State.
+3. **Unresolved conflicts** go to ⚠ Flagged Data - an unresolved value has no cleanly-grounded source.
+4. **Chunk_uuid audit** - any value arriving without a chunk_uuid is sent back into the Reporting worker's gap-fill list, not silently kept.
 
 ## Chart/Image Rules
 
-A `[CHART/IMAGE]` value must be corroborated before the answer uses it. It clears on **at least one** of:
-
-- **(a)** `render_figure(chunk_uuid=<id>)` - a pixel-level check of bar heights, slice sizes, and axis labels against the extracted value, or
-- **(b)** an independent `TEXT` or `TABLE` source confirming the same value.
-
-Stop at the first success; you do not need both. Charts frequently publish data that exists nowhere else in the document, so requiring both would permanently flag every waterfall value and the flag would stop carrying information.
-
-Corroboration search order:
-
-1. `render_figure(chunk_uuid)` - check bar heights, slice sizes, axis labels
-2. Narrative text on the same or adjacent pages
-3. Footnotes and endnotes
-4. Tables in the same document
-5. The same metric in a different document type
-6. Audited financial statements
-
-Record one status per chart value:
-
-- **`CORROBORATED`** - exact value confirmed by `render_figure`, or found in an independent `TEXT` / `TABLE` source (cite it)
-- **`PARTIALLY_CORROBORATED`** - a related value was found, but it disagrees (note the discrepancy)
-- **`UNCORROBORATED`** - neither check landed
-
-`PARTIALLY_CORROBORATED` and `UNCORROBORATED` values are still used, but they MUST appear in the ⚠ Flagged Data table (Step 6).
-
-Detection markers for chart-sourced text: `picture intentionally omitted`, `Start/End of picture text`.
-
-There is no per-value or per-source confidence - chart values, like all others, feed the single whole-answer `score_answer` band from Step 5.
+As in v3.1.0, scoped to values the answer uses: a [CHART/IMAGE] value clears on `render_figure` pixel-check OR one independent TEXT/TABLE source (first success wins). PARTIALLY_CORROBORATED and UNCORROBORATED values are still used but MUST appear in ⚠ Flagged Data. Detection markers: `picture intentionally omitted`, `Start/End of picture text`.
 
 ## General Rules
 
-- NEVER skip the Working State file - it's the backbone of cross-agent communication
-- NEVER fabricate data - if not found, mark as PENDING/gap
-- NEVER state a data point (number or named item) without citing it - it must have a row in the mandatory Sources table (see Step 6); never inline the source in prose
-- NEVER ask the user to confirm, correct, or adjudicate a value. Flagged data is shown, not negotiated (see Step 6's ⚠ Flagged Data)
-- NEVER surface a confidence band other than the single whole-answer `score_answer` band, and only when it is `low`. There is no per-metric, per-value, or per-source confidence
+- NEVER skip the Working State file
+- NEVER fabricate data - not found means gap/PENDING
+- NEVER state a data point without a row in the Sources table
+- NEVER ask the user to confirm, correct, or adjudicate a value
+- NEVER surface a confidence band other than the single `score_answer` band, and only when `low`
 - ALWAYS include period comparison when comparison data exists
-- When asked to produce an artifact (dashboard, exported document, chart), ALWAYS apply `references/artifact-style.md` - read it first for the palette and layout; never emit an unstyled or off-brand artifact
+- ALWAYS have workers report their MCP call counts; the session records the total in the Working State methodology block
+- Worker model is `sonnet` for all three waves unless the user overrides
+- For artifacts (dashboard, exported document, chart), apply `references/artifact-style.md`
 - Use hyphens with spaces instead of em-dashes (user preference)
 
-## References
+## References (bundled with this plugin - synced from prism-analyst v3.1.0)
 
-- `references/domains/<asset-class>/*.md` - per-domain metric catalogs, sub-agent search strategies, cross-validation rules, red flag triggers, one set per asset class (`private-equity/`, `fiber/`). Each domain agent reads only its own file. `references/domains/reporting.md` is shared across all asset classes.
-- `references/working-state-template.md` - Working State file template and lifecycle
-- `references/prism-tools-reference.md` - Prism MCP tool signatures, parameters, and common pitfalls
-- `references/artifact-style.md` - colors, typography, page layout, and chart-type defaults for rendered artifacts (HTML dashboard, exported document, image).
+- `references/domains/<asset-class>/*.md` - metric catalogs, search strategies, cross-validation rules, red-flag triggers
+- `references/prism-tools-reference.md` - Prism MCP tool signatures and pitfalls
+- `references/artifact-style.md` - artifact styling
+
+## Slim Working State Template
+
+```markdown
+# PRISM Working State (lite)
+## Session: {deal_id} | T: {target} | T-1: {prior} | T-1Y: {year_ago or "n/a"}
+## Created: {timestamp} | Query: {user_question}
+
+## Deal Context
+- transaction_id / asset_class / doc_types / entity_aliases / enrichment_overrides
+- Periods: T {target}, T-1 {prior}, T-1Y {year_ago or "does not exist"}
+
+## Wave 1 - Retrieval ({domains in scope}) - Status: PENDING|DONE
+### Verified Metrics
+| Metric | T | Prior | Delta | Source (type, doc, page, chunk_uuid) | Flag |
+### Gaps / Red Flags / Narrative Fragments / Chart-Image Points
+### Session validation notes (checks run, conflicts resolved)
+
+## Wave 2 - Risk - Status: SKIPPED|PENDING|DONE
+(same sub-structure; includes Cross-Domain Signals passed in)
+
+## Wave 3 - Reporting - Status: PENDING|DONE
+### Methodology (internal - NEVER shown to the user)
+- Workers spawned, MCP call counts, conflicts resolved, corroboration tally, score_answer band
+### Final Answer
+(the Step 6 structured response as presented)
+```
+
+## Differences from v3.1.0 (for reviewers)
+
+1. Orchestration moved into the main session: no Opus domain orchestrators, no Haiku sub-agent fan-out; ONE `sonnet` worker per wave (v3: up to 4 Opus + ~9-12 Haiku).
+2. Cross-validation by redundant retrieval replaced by the Session Validation Protocol (structural checks + source hierarchy).
+3. Wave 1 covers multiple in-scope domains with one combined brief instead of one agent per domain.
+4. Explicit per-worker MCP call budgets (10 / 5 / 4+corroboration) and mandatory call-count reporting.
+5. Workers never search periods absent from `periods_available` (v3 sub-agent templates mandated dual-period search unconditionally).
+6. Chart corroboration explicitly limited to values the answer uses.
+7. Working State slimmed (no sub-agent decision tables); maintained by the session only.
+8. Scoping table, Step 6 output contract, source hierarchy, flag symbols, and score_answer usage are UNCHANGED from v3.1.0.
