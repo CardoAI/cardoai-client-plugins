@@ -9,7 +9,7 @@
     {
       "name": "prism-analyst",
       "source": "./plugins/prism-analyst",
-      "description": "Verified retrieval for Prism deals/transactions. Bundles two skills for side-by-side benchmarking: prism-analyst (v4.0.0, session-orchestrated, one worker agent per wave) and prism-analyst-lite-v5 (v5.0.0, experimental - table-first retrieval, inline by default). Connects to the Prism MCP server."
+      "description": "Tiered verified retrieval for Prism deals/transactions - session fast path for simple questions, single-worker waves for deep-dives. Bundles the prism-analyst skill and connects to the Prism MCP server."
     },
     {
       "name": "abf-analytics",
