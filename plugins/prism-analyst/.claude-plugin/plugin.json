@@ -1,10 +1,16 @@
 {
   "name": "prism-analyst",
-  "version": "4.0.0",
-  "description": "Session-orchestrated verified retrieval for Prism deals/transactions - one worker agent per wave. Bundles the prism-analyst skill and connects to the Prism MCP server.",
+  "version": "4.1.0",
+  "description": "Tiered verified retrieval for Prism deals/transactions - session fast path for simple questions, single-worker waves for deep-dives. Bundles the prism-analyst skill and connects to the Prism MCP server.",
   "author": {
     "name": "CardoAI",
     "email": "dev@cardoai.com"
   },
-  "keywords": ["prism", "abf", "deals", "analytics", "mcp"]
+  "keywords": [
+    "prism",
+    "abf",
+    "deals",
+    "analytics",
+    "mcp"
+  ]
 }
