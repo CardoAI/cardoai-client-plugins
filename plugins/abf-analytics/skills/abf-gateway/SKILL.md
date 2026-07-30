@@ -35,7 +35,9 @@ Follow `knowledge/contracts/reading-stratification-tables.md` before narrating a
 
 ## Step 1: Confirm ABF MCP availability and environment
 
-Find the ABF server by looking for ABF-specific MCP tools — `list_transactions`, `list_transaction_analytics`, `get_stratification_analytics_data` — among the available tools. If none are present, say so and stop.
+Find the ABF server by looking for ABF-specific MCP tools — `list_transactions`, `list_transaction_analytics`, `get_stratification_analytics_data`, `get_filterable_columns`, `list_resources`, `read_resource` — among the available tools. If none are present, say so and stop.
+
+Call `list_resources` once per session, before the first `read_resource` call, to discover the actual resource URIs and templates this server exposes — including any `securitizations://` catalogs. Do not guess a resource URI from a tool description; confirm it exists in `list_resources`' output first.
 
 If multiple ABF MCP servers are connected (e.g., both UAT and Staging) and the user has not identified which environment to query, **ask before any tool call** — including read-only analytical queries. Once confirmed, use only that server's tools for the rest of the session — including `read_resource` for knowledge and reference resources; never mix one environment's catalog with another environment's data.
 
@@ -65,6 +67,17 @@ If no transaction is active and no asset class is named, resolve it once a trans
 ## Step 3: Visuals
 
 Deliver visuals opportunistically by default — text and markdown tables for simple answers, and a chart, heatmap, or interactive table when the data is clearly visualization-friendly (`knowledge/reference/visuals-playbook.md`). If the analyst says "turn visuals off", "no charts", or "always chart this", honor it for the rest of the session.
+
+Before rendering any artifact — HTML dashboard, exported Word/PDF/Excel document, or standalone chart image — load `knowledge/reference/artifact-style.md` and apply its colors, typography, and page layout. `visuals-playbook.md` picks the chart type; `artifact-style.md` governs how that chosen chart, table, or page is actually rendered. Do not render first and reconcile style afterward — load the style reference before the first render call of the session, then reuse it for the rest of the session.
+
+**Mandatory pre-render gate — run this before calling any chart/table rendering tool, every time:**
+
+1. List, explicitly, every row/cohort/vintage/category dropped, capped, deduplicated, re-bucketed, or re-aggregated versus what the retrieved analytics returned raw.
+2. If that list is non-empty and the user did not explicitly request that exact treatment in this conversation, **stop. Do not render.** Ask the user how to handle each item instead (include as-is / flag distinctly / exclude). This question IS the entire response — do not ask and then render anyway in the same turn.
+3. If the list is empty, or the user already specified the treatment, proceed to render.
+4. Any gap in a reported time series (no data for some x-axis span) must render as a true break (`connectNulls: false` / `spanGaps: false` or equivalent) — never an interpolated line across missing periods.
+
+This gate is not satisfied by mentioning the filtering choice in prose after the chart is shown. See `knowledge/reference/visuals-playbook.md` § "Before producing: check for filtering decisions" for the trigger list and example phrasings.
 
 ## Step 4: Follow chain references
 
@@ -96,7 +109,7 @@ On-demand references; the gateway does not preload them.
 - `knowledge/reference/common-pitfalls.md` — defensive patterns.
 - `knowledge/reference/derived-metrics.md` — SMM/CPR/MoM/concentration-drift formulas.
 - `knowledge/reference/visuals-playbook.md` — chart-type defaults per analysis pattern.
-- `knowledge/reference/artifact-style.md` — colors, typography, and page layout for any rendered artifact (HTML dashboard, exported document, image). Consult whenever producing one.
+- `knowledge/reference/artifact-style.md` — colors, typography, and page layout for any rendered artifact (HTML dashboard, exported document, image). **Not optional** — see Step 3, which requires loading this before any artifact render.
 
 ## Never
 
