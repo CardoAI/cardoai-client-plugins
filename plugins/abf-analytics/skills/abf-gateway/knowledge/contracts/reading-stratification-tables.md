@@ -31,7 +31,7 @@ One row = one cell of the `group_by` cross-product. In a vintage view grouped by
 | Dimension | Listed in `group_by` | Coordinates of the cell; never a measure |
 | Cell measure | `sum`/`avg` aggregation; varies row to row | Applies to that cell's assets only |
 | Cohort constant | `max` aggregation; repeats identically across all rows sharing a cohort value | Describes the whole cohort; the repetition is the tell |
-| Derived ratio | `aggregation_function: null`, `data_type: percentage` | Server-computed; semantics come from the glossary, not the name |
+| Derived ratio | `aggregation_function: null`, `data_type: percentage` | Server-computed; semantics come from `columns[].description`, not the name |
 | Benchmark | Constant-like but varying within a cohort (e.g. UW CGL) | Sub-group level; see section 7 |
 | `Count` | Always present | Row count of assets in the cell |
 
@@ -48,9 +48,9 @@ Every view has an underlying population, and it may be filtered by construction.
 
 In vintage tables it is standard for a row to mix time-grains: the dollar columns are per-MOB slices (what happened at that month) while the derived ratio is cumulative through that MOB (the curve value). The tell is monotonicity: scan the ratio along the ordered dimension within one cohort - non-decreasing means cumulative; rising and falling means periodic. Verify once per table, then read consistently. Never add cumulative column values across MOBs (double-counting) and never read one MOB's slice as the curve.
 
-## 6. Glossary discipline's gap
+## 6. Column description gap
 
-The glossary wins over column display names — see `../reference/common-pitfalls.md` § Trusting column name over glossary for the base rule. The gap that rule doesn't cover: derived ratio columns are frequently the ones with no glossary entry at all. A missing entry means the column's numerator, denominator, and population are unverified. In that case present the value attributed to its source ("the CGL Vintage view reports 58.0% at MOB 31", with the frontend `url`) and do not assert what it is a percentage of. Interpretation you cannot ground in the glossary, the view metadata, or the asset-class KPI catalog is not stated as fact.
+`columns[].description` wins over column display names — see `../reference/common-pitfalls.md` § Trusting column name over its description for the base rule. The gap that rule doesn't cover: derived ratio columns are frequently the ones with no description at all. A missing description means the column's numerator, denominator, and population are unverified. In that case present the value attributed to its source ("the CGL Vintage view reports 58.0% at MOB 31", with the frontend `url`) and do not assert what it is a percentage of. Interpretation you cannot ground in the column description, the view metadata, or the asset-class KPI catalog is not stated as fact.
 
 ## 7. Benchmarks and the total row
 

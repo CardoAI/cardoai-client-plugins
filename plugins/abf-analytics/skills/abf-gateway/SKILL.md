@@ -49,7 +49,7 @@ Classify the question scope — verb/noun based, needs no catalog:
 
 **Narrow fast path — answer inline, no skill hops.** For `narrow`, do NOT load `abf-asset-class-context` and do NOT enter `abf-report-runner`:
 
-1. Run the required chain directly: `list_transaction_analytics` → `get_filterable_columns` (call this whenever a filter / bucket / status / category is implied — it returns the allowed labels; never guess them) → `get_stratification_analytics_data` with an explicit, conservative `limit` (start ~50-100 rows, not the 2000 default/max — see `knowledge/reference/common-pitfalls.md`). Trust the CSV glossary over column names.
+1. Run the required chain directly: `list_transaction_analytics` → `get_filterable_columns` (call this whenever a filter / bucket / status / category is implied — it returns the allowed labels; never guess them) → `get_stratification_analytics_data` with an explicit, conservative `limit` (start ~50-100 rows, not the 2000 default/max — see `knowledge/reference/common-pitfalls.md`). Trust `columns[].description` over column names.
 2. Use the active `transaction_id` from session context. Call `list_transactions` only when the transaction must still be identified, or for cross-transaction work.
 3. Deliver the answer, ending with the analytics name and source `url` for each retrieval it drew on.
 
