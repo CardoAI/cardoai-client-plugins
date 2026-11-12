@@ -44,7 +44,7 @@ Business terms used in ABF analyst conversations and on the server-side skill de
 
 - **Percentage scale** — `data_type: percentage` is stored as 0..1 (e.g. 0.05 = 5%). `data_type: percentage_full` is stored as 0..100. Cluster labels render with `%`; CSV rows carry the stored scale. Filter values use the stored scale.
 - **Amount conventions** — raw currency units (e.g. 1500000.0). Cluster labels abbreviate (`1.5M`); CSV rows carry raw values.
-- **Glossary block** — every `get_stratification_analytics_data` response includes a `Glossary:` block in the CSV mapping column display names to business meaning. **Trust the glossary over column names when they disagree.**
+- **Column descriptions** — every `get_stratification_analytics_data` response has a `columns` list next to the CSV: each entry gives a CSV column's name, data type and `description` (its business meaning). **Trust `columns[].description` over column names when they disagree.**
 
 ## Cross-references
 

@@ -38,13 +38,13 @@ Defensive patterns the gateway and report runner should follow proactively. Each
 
 **Enforcement:** Server-side validation rejects unrecognized values with `{"error": "validation", ...}`. The gateway should not reach that boundary — load `get_filterable_columns` first.
 
-## Trusting column name over glossary
+## Trusting column name over its description
 
-**Failure:** Interpreting a column by its display name when the response's `Glossary:` block says it means something else.
+**Failure:** Interpreting a column by its display name when its `columns[].description` says it means something else.
 
-**Rule:** When the column name and glossary description disagree, the glossary wins. The glossary captures business semantics that column names can't express.
+**Rule:** When the column name and `columns[].description` disagree, the description wins. The description captures business semantics that column names can't express.
 
-**Enforcement:** Every `get_stratification_analytics_data` response carries the glossary; readers consult it before reasoning numerically.
+**Enforcement:** Every `get_stratification_analytics_data` response carries `columns[].description`; readers consult it before reasoning numerically.
 
 ## Re-running the same analytics to "see more"
 
