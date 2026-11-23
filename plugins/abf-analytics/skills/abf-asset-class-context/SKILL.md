@@ -120,7 +120,7 @@ routing metadata**. Surface NONE of them.
 ## Authority boundary
 
 The catalog defines what is **relevant** for an asset class; it is not a calculation authority.
-Ground every number in live MCP data (`get_stratification_analytics_data`). A catalog
+Ground every number in live MCP data (`get_table_data`). A catalog
 `computation` string is a framing reference, not a substitute for the server's computed value.
 
 ## Never

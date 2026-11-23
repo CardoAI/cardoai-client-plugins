@@ -80,7 +80,7 @@ The offered domains are known. The runner transitions to Confirm scope.
 
 ## What the runner must NOT do in this phase
 
-- **No analytics data retrieval (`get_stratification_analytics_data`).** Discovery only.
+- **No analytics data retrieval (`get_table_data`).** Discovery only.
 - **No analyst message.** Confirm scope owns the first conversational moment.
 
 ## Cross-references

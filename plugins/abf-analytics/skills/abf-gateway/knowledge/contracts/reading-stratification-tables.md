@@ -1,6 +1,6 @@
 # Reading Stratification Tables
 
-How to read a `get_stratification_analytics_data` response (and a platform CSV export) correctly. This is a reading discipline, not a calculation guide: values returned by the analytics are authoritative and are stated as-is. Agent-side recomputation of anything the view already provides is a fallback that runs only with the analyst's explicit confirmation (last section).
+How to read a `get_table_data` response (and a platform CSV export) correctly. This is a reading discipline, not a calculation guide: values returned by the analytics are authoritative and are stated as-is. Agent-side recomputation of anything the view already provides is a fallback that runs only with the analyst's explicit confirmation (last section).
 
 Consult before narrating any multi-dimension analytics (vintage, cohort, MOB × date, or any view with more than one `group_by` dimension) — misreading grain and aggregation semantics on these tables is the leading cause of wrong analysis, especially once the row count is large enough that no one eyeballs every row.
 
@@ -58,7 +58,7 @@ A benchmark column like UW CGL is typically `max`-aggregated and varies by asset
 
 ## 8. Scales
 
-Covered in `../reference/common-pitfalls.md` § Percentage scale confusion and the `stratification://data-types` resource - read both once per session before comparing raw values across columns.
+Covered in `../reference/common-pitfalls.md` § Percentage scale confusion and the `analytics://data-types` resource - read both once per session before comparing raw values across columns.
 
 ## 9. Plausibility is part of reading, not calculating
 
