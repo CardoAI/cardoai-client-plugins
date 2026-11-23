@@ -2,7 +2,7 @@
 name: abf-gateway
 description: >
   Use when the user asks about ABF CardoAI data, transactions, securitizations, deals, or portfolio analytics.
-  Triggers on: Transaction lookups, stratification analytics, portfolio analytics, delinquency/loss/prepayment analysis,
+  Triggers on: Transaction lookups, tables, portfolio analytics, delinquency/loss/prepayment analysis,
   comprehensive reports, cross-transaction comparison, browsing available transactions, exploring available analytics,
   understanding filterable columns, waterfall/cash-flow/tranche/distribution analysis.
 ---
@@ -31,11 +31,11 @@ Follow `knowledge/contracts/response-discipline.md` for every user-facing reply.
 
 ## Reading discipline
 
-Follow `knowledge/contracts/reading-stratification-tables.md` before narrating any `get_stratification_analytics_data` response with more than one `group_by` dimension (vintage, cohort, MOB × date). Grain and aggregation-function misreads on these tables are the leading cause of wrong analysis, especially once the row count is large enough that no one eyeballs every row.
+Follow `knowledge/contracts/reading-stratification-tables.md` before narrating any `get_table_data` response with more than one `group_by` dimension (vintage, cohort, MOB × date). Grain and aggregation-function misreads on these tables are the leading cause of wrong analysis, especially once the row count is large enough that no one eyeballs every row.
 
 ## Step 1: Confirm ABF MCP availability and environment
 
-Find the ABF server by looking for ABF-specific MCP tools — `list_transactions`, `list_transaction_analytics`, `get_stratification_analytics_data` — among the available tools. If none are present, say so and stop.
+Find the ABF server by looking for ABF-specific MCP tools — `list_transactions`, `list_transaction_analytics`, `get_table_data` — among the available tools. If none are present, say so and stop.
 
 If multiple ABF MCP servers are connected (e.g., both UAT and Staging) and the user has not identified which environment to query, **ask before any tool call** — including read-only analytical queries. Once confirmed, use only that server's tools for the rest of the session — including `read_resource` for knowledge and reference resources; never mix one environment's catalog with another environment's data.
 
@@ -49,7 +49,7 @@ Classify the question scope — verb/noun based, needs no catalog:
 
 **Narrow fast path — answer inline, no skill hops.** For `narrow`, do NOT load `abf-asset-class-context` and do NOT enter `abf-report-runner`:
 
-1. Run the required chain directly: `list_transaction_analytics` → `get_filterable_columns` (call this whenever a filter / bucket / status / category is implied — it returns the allowed labels; never guess them) → `get_stratification_analytics_data` with an explicit, conservative `limit` (start ~50-100 rows, not the 2000 default/max — see `knowledge/reference/common-pitfalls.md`). Trust the CSV glossary over column names.
+1. Run the required chain directly: `list_transaction_analytics` → `get_filterable_columns` (call this whenever a filter / bucket / status / category is implied — it returns the allowed labels; never guess them) → `get_table_data` with an explicit, conservative `limit` (start ~50-100 rows, not the 2000 default/max — see `knowledge/reference/common-pitfalls.md`). Trust the CSV glossary over column names.
 2. Use the active `transaction_id` from session context. Call `list_transactions` only when the transaction must still be identified, or for cross-transaction work.
 3. Deliver the answer, ending with the analytics name and source `url` for each retrieval it drew on.
 
@@ -79,14 +79,14 @@ Routing:
 
 ## Step 5: Treat loaded skills as binding
 
-- **Required tool chains** — follow the MCP server's documented chain order (`list_transaction_analytics` → `get_filterable_columns` → `get_stratification_analytics_data`); don't shortcut.
+- **Required tool chains** — follow the MCP server's documented chain order (`list_transaction_analytics` → `get_filterable_columns` → `get_table_data`); don't shortcut.
 - **Vocabulary and enums** — call `get_filterable_columns` for allowed filter labels; never guess delinquency-bucket / status / category values.
 
 When a loaded skill says "never X" or "always Y first", that is binding behavior, not a suggestion.
 
 ## Local agent contracts
 
-- `agents/view-selector.md` — consumed by `abf-report-runner`; selects the stratification analytics + filters for a single analytical question. Inline only.
+- `agents/view-selector.md` — consumed by `abf-report-runner`; selects the table + filters for a single analytical question. Inline only.
 
 ## Reference knowledge
 
@@ -101,5 +101,5 @@ On-demand references; the gateway does not preload them.
 ## Never
 
 - Answer an ABF MCP request from priors without reading the relevant skill. The vocabulary and analytics catalog are not in training data.
-- Reuse a `strat_view_id` across transactions.
+- Reuse a `table_id` across transactions.
 - Re-run the same analytics with different `limit`/`offset` to "see more" — pagination is response-size only; page with `dataset.next_offset` or narrow with filters.

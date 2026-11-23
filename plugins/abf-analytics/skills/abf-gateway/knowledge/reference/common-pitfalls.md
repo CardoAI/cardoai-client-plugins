@@ -12,7 +12,7 @@ Defensive patterns the gateway and report runner should follow proactively. Each
 
 ## Cross-transaction analytics ID reuse
 
-**Failure:** Reusing a `strat_view_id` from one transaction when querying another. Per the plugin's CLAUDE.md Critical Constraint, `strat_view_id` is unique per transaction — the same analytics conceptually exists on each transaction with a different UUID.
+**Failure:** Reusing a `table_id` from one transaction when querying another. Per the plugin's CLAUDE.md Critical Constraint, `table_id` is unique per transaction — the same analytics conceptually exists on each transaction with a different UUID.
 
 **Rule:** Cross-transaction analysis discovers analytics separately for each transaction via `list_transaction_analytics(transaction_id=...)`.
 
@@ -33,7 +33,7 @@ Defensive patterns the gateway and report runner should follow proactively. Each
 **Rule:** Filter operators, allowed enum / bucket / status values, and asset class values must come from a discovery tool or reference resource — verbatim. The closed lists are:
 
 - `get_filterable_columns` — allowed filter operators and enum/choice values per column for a given analytics
-- `stratification://filter-operators` — filter operators per data type
+- `analytics://filter-operators` — filter operators per data type
 - `securitizations://asset-classes` — asset class values
 
 **Enforcement:** Server-side validation rejects unrecognized values with `{"error": "validation", ...}`. The gateway should not reach that boundary — load `get_filterable_columns` first.
@@ -44,19 +44,19 @@ Defensive patterns the gateway and report runner should follow proactively. Each
 
 **Rule:** When the column name and glossary description disagree, the glossary wins. The glossary captures business semantics that column names can't express.
 
-**Enforcement:** Every `get_stratification_analytics_data` response carries the glossary; readers consult it before reasoning numerically.
+**Enforcement:** Every `get_table_data` response carries the glossary; readers consult it before reasoning numerically.
 
 ## Re-running the same analytics to "see more"
 
-**Failure:** Calling `get_stratification_analytics_data` repeatedly with different `limit` / `offset` to fetch additional data, expecting per-call DB savings.
+**Failure:** Calling `get_table_data` repeatedly with different `limit` / `offset` to fetch additional data, expecting per-call DB savings.
 
 **Rule:** The full result set is computed on every call regardless of `limit` / `offset` — pagination is response-size only. Use `dataset.next_offset` to page through; do NOT re-execute the same analytics to fetch incremental data. When results are large, narrow with filters first.
 
-**Enforcement:** `get_stratification_analytics_data` tool description.
+**Enforcement:** `get_table_data` tool description.
 
-## Oversized `get_stratification_analytics_data` result
+## Oversized `get_table_data` result
 
-**Failure:** Calling `get_stratification_analytics_data` with no explicit `limit`, or the full 2000-row default/max, on a wide or high-cardinality analytics. The CSV payload exceeds the client's token budget, the tool returns a `result exceeds maximum allowed tokens` error and writes the data to a local file instead of the response, and the agent then answers from data it never actually received.
+**Failure:** Calling `get_table_data` with no explicit `limit`, or the full 2000-row default/max, on a wide or high-cardinality analytics. The CSV payload exceeds the client's token budget, the tool returns a `result exceeds maximum allowed tokens` error and writes the data to a local file instead of the response, and the agent then answers from data it never actually received.
 
 **Rule:** Pass an explicit, conservative `limit` (start at 50-100 rows for exploratory/narrow questions and report blocks, which only need a handful of figures) rather than relying on the 2000 default. On an oversized-result error, retry the same call with a smaller `limit` and/or a filter from `get_filterable_columns` that narrows the row count — never read or guess at data from the local file path in the error.
 
@@ -74,7 +74,7 @@ Defensive patterns the gateway and report runner should follow proactively. Each
 
 **Failure:** Interpreting a percentage value as 5 when the stored scale is 0.05, or filtering by "5" when the data is `data_type: percentage` (stored 0..1).
 
-**Rule:** Read `stratification://data-types` once per session to internalize the scales. `percentage` stores 0..1 (filter values use 0..1). `percentage_full` stores 0..100 (filter values use 0..100). CSV rows always carry the stored scale; cluster labels render with `%`.
+**Rule:** Read `analytics://data-types` once per session to internalize the scales. `percentage` stores 0..1 (filter values use 0..1). `percentage_full` stores 0..100 (filter values use 0..100). CSV rows always carry the stored scale; cluster labels render with `%`.
 
 **Enforcement:** Reference resource exists; consult before reasoning numerically about percentages.
 

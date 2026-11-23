@@ -61,7 +61,7 @@ The key takeaways have been delivered to the analyst. The runner transitions to 
 
 ## What the runner must NOT do in this phase
 
-- **No `get_stratification_analytics_data` calls.** Synthesis reads from what has already been delivered.
+- **No `get_table_data` calls.** Synthesis reads from what has already been delivered.
 - **No reload of any skill already read this conversation.**
 
 ## Cross-references
